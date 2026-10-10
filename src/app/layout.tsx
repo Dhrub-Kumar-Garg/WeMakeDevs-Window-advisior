@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { spaceGrotesk, spaceMono, instrumentSerif } from '@/lib/fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -14,10 +15,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable} ${instrumentSerif.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="antialiased">
         {children}

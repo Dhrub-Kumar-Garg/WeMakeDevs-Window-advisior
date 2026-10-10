@@ -1,8 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { useEnvironmentStore } from '@/store/useEnvironmentStore';
-import { X, Server, Activity, ToggleLeft, ToggleRight } from 'lucide-react';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 
 export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
@@ -15,23 +13,15 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
   };
 
   return (
-    <AnimatePresence>
+    <>
       {showWindowDetail && (
         <div className="fixed inset-0 z-[100] flex justify-end pointer-events-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+          <div
             className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
             onClick={() => setShowWindowDetail(false)}
           />
 
-          <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          <div
         className="relative w-full max-w-sm bg-surface border-l border-subtle h-full flex flex-col shadow-2xl"
       >
         <div className="p-6 border-b border-subtle flex items-center justify-between">
@@ -40,9 +30,9 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
           </h2>
           <button 
             onClick={() => setShowWindowDetail(false)}
-            className="w-8 h-8 rounded-full hover:bg-panel flex items-center justify-center transition-colors text-secondary"
+            className="w-8 h-8 rounded-full hover:bg-panel flex items-center justify-center text-secondary"
           >
-            <X size={16} />
+            ✕
           </button>
         </div>
 
@@ -51,13 +41,17 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
           <div className="flex flex-col gap-4">
             <h3 className="label-technical">Device Control</h3>
             <div 
-              className={`p-6 border flex flex-col items-center justify-center gap-4 cursor-pointer transition-colors ${isOpen ? 'bg-panel border-default' : 'bg-surface border-subtle hover:border-default'}`}
+              className={`p-6 border flex flex-col items-center justify-center gap-4 cursor-pointer ${isOpen ? 'bg-panel border-default' : 'bg-surface border-subtle hover:border-default'}`}
               onClick={toggleWindow}
             >
               {isOpen ? (
-                <ToggleRight size={48} className="text-primary" strokeWidth={1} />
+                <div className="w-12 h-6 rounded-full bg-primary flex items-center p-1 justify-end">
+                  <div className="w-4 h-4 rounded-full bg-white" />
+                </div>
               ) : (
-                <ToggleLeft size={48} className="text-muted" strokeWidth={1} />
+                <div className="w-12 h-6 rounded-full bg-muted flex items-center p-1 justify-start">
+                  <div className="w-4 h-4 rounded-full bg-white" />
+                </div>
               )}
               <div className="text-center">
                 <div className={`text-sm font-medium ${isOpen ? 'text-primary' : 'text-secondary'}`}>
@@ -107,9 +101,9 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
           </div>
 
         </div>
-      </motion.div>
+      </div>
     </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

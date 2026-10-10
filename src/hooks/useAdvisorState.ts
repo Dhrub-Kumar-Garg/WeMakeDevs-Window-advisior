@@ -1,135 +1,125 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { updateCO2 } from '@/lib/co2Model';
-import type { SensorData, ModelParams, CO2DataPoint, HourlyForecast, EventEntry } from '@/lib/types';
-import { generateHourlyForecast, DEMO_EVENTS, DEFAULT_MODEL_PARAMS } from '@/lib/mockData';
-import { computeVerdict } from '@/lib/decision';
-
-export type Verdict = 'OPEN_WINDOW' | 'KEEP_CLOSED' | 'WAIT';
+import { useEnvironmentStore } from '@/store/useEnvironmentStore';
+import type { Verdict } from '@/lib/decision';
+import type { CO2DataPoint, HourlyForecast, EventEntry, ModelParams, WindowState } from '@/lib/types';
+import { fetchLatestReading, fetchOutdoorForecast, getSourceStatus, type SourceStatus } from '@/lib/dataSource';
+import { findBestVentilationWindow } from '@/lib/co2Model';
 
 export interface AdvisorState {
   co2Estimated: number;
   outdoorAQI: number;
   occupants: number;
-  windowState: 'closed' | 'open';
+  windowState: WindowState;
   ach: number;
   verdict: Verdict;
+  modelParams: ModelParams;
+  waitUntil?: string;
+  sourceStatus: SourceStatus;
   forecast: HourlyForecast[];
   history: CO2DataPoint[];
   events: EventEntry[];
   isDemo: boolean;
   timeCompression: number;
   setOccupants: (n: number) => void;
-  setWindowState: (state: 'closed' | 'open') => void;
-  setSashAngle: (angle: number) => void; // 0 to 60
+  setWindowState: (state: WindowState) => void;
+  setSashAngle: (angle: number) => void;
   sashAngle: number;
 }
 
 export function useAdvisorState(): AdvisorState {
+  const store = useEnvironmentStore();
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === '1';
-  
-  // Real or mock data bases
-  const [co2Estimated, setCo2Estimated] = useState(600);
-  const [outdoorAQI, setOutdoorAQI] = useState(42);
-  const [occupants, setOccupants] = useState(1);
-  const [windowState, setWindowState] = useState<'closed' | 'open'>('closed');
-  const [sashAngle, setSashAngle] = useState(0); // 0 to 60 deg
-  
-  const [forecast, setForecast] = useState<HourlyForecast[]>([]);
-  const [history, setHistory] = useState<CO2DataPoint[]>([]);
-  const [events, setEvents] = useState<EventEntry[]>([]);
 
-  const paramsRef = useRef(DEFAULT_MODEL_PARAMS);
+  // Compute ACH and waitUntil inline
+  const ach = store.windowState === 'closed' 
+    ? store.modelParams.achClosed 
+    : store.modelParams.achClosed + (store.sashAngle / 60) * (store.modelParams.achOpen - store.modelParams.achClosed);
 
-  // Computed ACH from sash angle
-  // 0 deg -> achClosed (e.g. 0.3)
-  // 60 deg -> achOpen (e.g. 5.0)
-  const ach = windowState === 'closed' 
-    ? paramsRef.current.achClosed 
-    : paramsRef.current.achClosed + (sashAngle / 60) * (paramsRef.current.achOpen - paramsRef.current.achClosed);
+  let waitUntil: string | undefined;
+  if (store.recommendation === 'WAIT' && store.hourlyForecast.length > 0) {
+    const bestWindow = findBestVentilationWindow(store.hourlyForecast, store.modelParams.aqiThreshold);
+    if (bestWindow) {
+      waitUntil = String(bestWindow.startHour).padStart(2, '0') + ':00';
+    }
+  }
 
-  const verdict = computeVerdict(co2Estimated, outdoorAQI, paramsRef.current.co2Threshold, paramsRef.current.aqiThreshold);
-
+  // Simulation tick and live polling
   useEffect(() => {
-    // Initialize
-    setForecast(generateHourlyForecast());
-  }, []);
+    // Poll AWS/Live Data
+    if (!isDemo) {
+      const fetchLiveData = async () => {
+        try {
+          const reading = await fetchLatestReading();
+          if (reading) {
+            store.applyLatestReading(reading);
+          }
+        } catch (_) {}
+      };
+      
+      const fetchForecast = async () => {
+        try {
+          const forecast = await fetchOutdoorForecast();
+          if (forecast && forecast.length > 0) {
+            store.applyForecast(forecast);
+          }
+        } catch (_) {}
+      };
 
-  // TICK
-  useEffect(() => {
-    const timeCompression = isDemo ? 60 : 1;
-    const tickRate = isDemo ? 100 : 5000; // Fast ticks in demo
-    const dtRealSeconds = (tickRate / 1000) * timeCompression;
+      fetchLiveData();
+      fetchForecast();
 
-    const interval = setInterval(() => {
-      setCo2Estimated(prev => {
-        const next = updateCO2(prev, occupants, paramsRef.current.roomVolume, ach, dtRealSeconds);
-        
-        // Add history point occasionally
-        if (Math.random() > 0.8) {
-          setHistory(h => {
-            const now = new Date();
-            const newPoint = {
-              time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-              estimated: Math.round(next),
-              min: Math.round(next) - 50,
-              max: Math.round(next) + 50,
-              mq135: Math.round(30 + (next - 420) / 900 * 65)
-            };
-            const nextHistory = [...h, newPoint];
-            if (nextHistory.length > 50) nextHistory.shift();
-            return nextHistory;
-          });
-        }
-        return next;
-      });
-    }, tickRate);
+      const pollSensors = setInterval(fetchLiveData, 30000); // 30s
+      const pollForecast = setInterval(fetchForecast, 1000 * 60 * 60); // 1h
+      
+      // And the physics simulation tick
+      const tickInterval = setInterval(() => {
+        store.tick();
+      }, 5000);
 
-    return () => clearInterval(interval);
-  }, [isDemo, occupants, ach]);
+      return () => {
+        clearInterval(pollSensors);
+        clearInterval(pollForecast);
+        clearInterval(tickInterval);
+      };
+    } else {
+      // Demo Mode
+      const tickRate = 100; // fast ticks (10x per second)
+      // 10 ticks per real second. If we want 60x time compression,
+      // 1 real second = 60 physics seconds. So each tick = 6 physics seconds.
+      const tickInterval = setInterval(() => {
+        store.tick(6);
+      }, tickRate);
 
-  // Demo script scenario runner
-  useEffect(() => {
-    if (!isDemo) return;
-    // Scripted scenario: empty room, thin air > PIR trigger, N=3, CO2 ramp to ~1100 > outdoor AQI spike to 160 (HOLD) > user drags the sash (ghost trace shows harm) > forecast clearing 06:00-07:00 AQI 38 > outdoor clears (OPEN) > limit switch pressed > CO2 falls toward 420
-    
-    // We can simulate external events here using timeouts
-    const t1 = setTimeout(() => { setOccupants(3); }, 2000);
-    const t2 = setTimeout(() => { setOutdoorAQI(160); }, 6000);
-    const t3 = setTimeout(() => { setOutdoorAQI(38); }, 15000);
-    
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [isDemo]);
-
-  const handleSetWindowState = useCallback((state: 'closed' | 'open') => {
-    setWindowState(state);
-    if (state === 'closed') setSashAngle(0);
-    else if (sashAngle === 0) setSashAngle(60);
-  }, [sashAngle]);
-
-  const handleSetSashAngle = useCallback((angle: number) => {
-    const clamped = Math.max(0, Math.min(60, angle));
-    setSashAngle(clamped);
-    if (clamped === 0 && windowState !== 'closed') setWindowState('closed');
-    if (clamped > 0 && windowState !== 'open') setWindowState('open');
-  }, [windowState]);
+      // Scripted events
+      const t1 = setTimeout(() => store.setOccupants(3), 2000);
+      
+      return () => {
+        clearInterval(tickInterval);
+        clearTimeout(t1);
+      };
+    }
+  }, [isDemo, store]);
 
   return {
-    co2Estimated: Math.round(co2Estimated),
-    outdoorAQI,
-    occupants,
-    windowState,
+    co2Estimated: store.sensorData.co2Estimated,
+    outdoorAQI: store.sensorData.outdoorAQI,
+    occupants: store.modelParams.occupants,
+    windowState: store.windowState,
     ach,
-    verdict,
-    forecast,
-    history,
-    events,
+    verdict: store.recommendation as Verdict, // Maps Recommendation to Verdict
+    modelParams: store.modelParams,
+    waitUntil,
+    sourceStatus: getSourceStatus(store.lastUpdated, isDemo),
+    forecast: store.hourlyForecast,
+    history: store.historicalCO2,
+    events: store.events,
     isDemo,
     timeCompression: isDemo ? 60 : 1,
-    setOccupants,
-    setWindowState: handleSetWindowState,
-    setSashAngle: handleSetSashAngle,
-    sashAngle
+    setOccupants: store.setOccupants,
+    setWindowState: store.setWindowState,
+    setSashAngle: store.setSashAngle,
+    sashAngle: store.sashAngle,
   };
 }

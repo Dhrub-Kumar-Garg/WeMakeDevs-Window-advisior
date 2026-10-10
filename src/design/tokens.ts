@@ -11,6 +11,7 @@ export const tokens = {
     inkLighter: '#e2e8f0', // borders
     signal: '#ff5f1f', // harm / HOLD
     oxide: '#00d4aa', // OPEN
+    wait: '#E8A200', // WAIT
   },
   motion: {
     easing: 'cubic-bezier(0.2, 0.7, 0.1, 1)',

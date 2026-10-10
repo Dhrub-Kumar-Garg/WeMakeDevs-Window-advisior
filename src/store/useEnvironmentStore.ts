@@ -4,12 +4,14 @@ import { create } from 'zustand';
 import type { EnvironmentState, Recommendation, WindowState, SensorData, ModelParams, CO2DataPoint, HourlyForecast, EventEntry } from '@/lib/types';
 import { computeRecommendation, computeConfidence, predictCO2Trajectory, updateCO2 } from '@/lib/co2Model';
 import { INITIAL_SENSOR_DATA, DEFAULT_MODEL_PARAMS, generateHistoricalCO2, generateHourlyForecast, DEMO_EVENTS } from '@/lib/mockData';
+import type { LatestReading } from '@/lib/dataSource';
 
 interface EnvironmentStore {
   // Core state
   envState: EnvironmentState;
   recommendation: Recommendation;
   windowState: WindowState;
+  sashAngle: number;
   confidence: number;
 
   // Live sensor data
@@ -39,19 +41,22 @@ interface EnvironmentStore {
   // Actions
   setOccupants: (n: number) => void;
   toggleWindow: () => void;
+  setWindowState: (state: WindowState) => void;
+  setSashAngle: (angle: number) => void;
   toggleSimulation: () => void;
   setShowModelExplainer: (v: boolean) => void;
   setShowWindowDetail: (v: boolean) => void;
-  tick: () => void;
+  tick: (dtSeconds?: number) => void;
   setModelParam: <K extends keyof ModelParams>(key: K, value: ModelParams[K]) => void;
+  applyLatestReading: (r: LatestReading) => void;
+  applyForecast: (f: HourlyForecast[]) => void;
 }
 
 function deriveEnvState(
   co2: number,
   windowOpen: boolean,
   pirPresence: boolean,
-  recommendation: Recommendation,
-  prevState: EnvironmentState
+  recommendation: Recommendation
 ): EnvironmentState {
   if (!pirPresence) return 'NORMAL';
   if (windowOpen && co2 < 600) return 'VENTILATED';
@@ -83,14 +88,14 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
     INITIAL_SENSOR_DATA.co2Estimated,
     false,
     true,
-    initialRec,
-    'OPEN_RECOMMENDED'
+    initialRec
   );
 
   return {
     envState: initialEnvState,
     recommendation: initialRec,
     windowState: 'closed',
+    sashAngle: 0,
     confidence: initialConf,
 
     sensorData: { ...INITIAL_SENSOR_DATA },
@@ -120,7 +125,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
         state.windowState !== 'closed'
       );
       const newConf = computeConfidence(state.sensorData.co2Estimated, state.sensorData.outdoorAQI, newParams, 'manual');
-      const newEnvState = deriveEnvState(state.sensorData.co2Estimated, state.windowState !== 'closed', state.sensorData.pirPresence, newRec, state.envState);
+      const newEnvState = deriveEnvState(state.sensorData.co2Estimated, state.windowState !== 'closed', state.sensorData.pirPresence, newRec);
 
       const event: EventEntry = {
         id: String(Date.now()),
@@ -156,7 +161,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       );
       const newConf = computeConfidence(state.sensorData.co2Estimated, state.sensorData.outdoorAQI, state.modelParams, 'manual');
       const newEnvState = newOpen ? 'VENTILATING' : deriveEnvState(
-        state.sensorData.co2Estimated, false, state.sensorData.pirPresence, newRec, state.envState
+        state.sensorData.co2Estimated, false, state.sensorData.pirPresence, newRec
       );
 
       const event: EventEntry = {
@@ -168,12 +173,40 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
 
       set({
         windowState: newWindowState,
+        sashAngle: newOpen ? 60 : 0,
         sensorData: newSensor,
         recommendation: newRec,
         confidence: newConf,
         envState: newEnvState,
         events: [event, ...state.events].slice(0, 20),
       });
+    },
+
+    setWindowState: (newWindowState: WindowState) => {
+      const state = get();
+      const newOpen = newWindowState === 'open';
+      const newSensor = { ...state.sensorData, windowOpen: newOpen };
+      const newRec = computeRecommendation(state.sensorData.co2Estimated, state.sensorData.outdoorAQI, state.modelParams, newOpen);
+      set({ 
+        windowState: newWindowState, 
+        sashAngle: newOpen ? 60 : 0,
+        sensorData: newSensor, 
+        recommendation: newRec 
+      });
+    },
+
+    setSashAngle: (angle: number) => {
+      const clamped = Math.max(0, Math.min(60, angle));
+      const state = get();
+      const updates: Partial<EnvironmentStore> = { sashAngle: clamped };
+      
+      if (clamped === 0 && state.windowState !== 'closed') {
+        get().setWindowState('closed');
+      } else if (clamped > 0 && state.windowState !== 'open') {
+        get().setWindowState('open');
+      } else {
+        set(updates);
+      }
     },
 
     toggleSimulation: () => {
@@ -208,14 +241,69 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       set({ modelParams: newParams, recommendation: newRec });
     },
 
-    tick: () => {
+    applyLatestReading: (reading: LatestReading) => {
       const state = get();
-      const dt = 5; // 5 second tick
+      const occ = reading.pirPresence ? state.modelParams.occupants : 0;
+      
+      const newSensor: SensorData = {
+        ...state.sensorData,
+        timestamp: reading.timestamp,
+        windowOpen: reading.windowOpen,
+        pirPresence: reading.pirPresence,
+        temperature: reading.temperature,
+        mq135Raw: reading.mq135Raw,
+      };
+
+      const newWindowState = reading.windowOpen ? 'open' : 'closed';
+      
+      const newRec = computeRecommendation(
+        state.sensorData.co2Estimated,
+        state.sensorData.outdoorAQI,
+        { ...state.modelParams, occupants: occ },
+        reading.windowOpen
+      );
+
+      const newEnvState = deriveEnvState(state.sensorData.co2Estimated, reading.windowOpen, reading.pirPresence, newRec);
+
+      set({
+        sensorData: newSensor,
+        windowState: newWindowState,
+        sashAngle: reading.windowOpen ? 60 : 0,
+        recommendation: newRec,
+        envState: newEnvState,
+        lastUpdated: reading.timestamp,
+      });
+    },
+
+    applyForecast: (forecast: HourlyForecast[]) => {
+      if (!forecast || forecast.length === 0) return;
+      const currentAQI = forecast[0].aqi;
+      const currentPM25 = forecast[0].pm25;
+      
+      const state = get();
+      const newSensor = {
+        ...state.sensorData,
+        outdoorAQI: currentAQI,
+        outdoorPM25: currentPM25,
+      };
+      
+      set({
+        hourlyForecast: forecast,
+        sensorData: newSensor,
+        recommendation: computeRecommendation(state.sensorData.co2Estimated, currentAQI, state.modelParams, state.windowState !== 'closed'),
+      });
+    },
+
+    tick: (dtSeconds?: number) => {
+      const state = get();
+      const dt = dtSeconds !== undefined ? dtSeconds : 5; // default 5 second tick
 
       const ACH = state.windowState !== 'closed' ? state.modelParams.achOpen : state.modelParams.achClosed;
+      const activeOccupants = state.sensorData.pirPresence ? state.modelParams.occupants : 0;
+      
       const newCO2 = updateCO2(
         state.sensorData.co2Estimated,
-        state.modelParams.occupants,
+        activeOccupants,
         state.modelParams.roomVolume,
         ACH,
         dt
@@ -233,7 +321,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
 
       const newRec = computeRecommendation(newCO2Rounded, state.sensorData.outdoorAQI, state.modelParams, state.windowState !== 'closed');
       const newConf = computeConfidence(newCO2Rounded, state.sensorData.outdoorAQI, state.modelParams, 'manual');
-      const newEnvState = deriveEnvState(newCO2Rounded, state.windowState !== 'closed', state.sensorData.pirPresence, newRec, state.envState);
+      const newEnvState = deriveEnvState(newCO2Rounded, state.windowState !== 'closed', state.sensorData.pirPresence, newRec);
 
       // Add to history (every 10 ticks = 50s ≈ keep it manageable for demo)
       const newHistory = [...state.historicalCO2];

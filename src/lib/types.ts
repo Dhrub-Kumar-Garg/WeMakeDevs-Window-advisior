@@ -36,7 +36,8 @@ export interface ModelParams {
   roomVolume: number;       // m³
   occupants: number;        // N
   achClosed: number;        // air changes/h window closed
-  achOpen: number;          // air changes/h window open
+  achOpen: number;          // air changes/h window open (legacy, or midpoint)
+  achOpenRange: [number, number]; // [low, high] assumed ACH when open
   outdoorBaseline: number;  // ppm (420)
   co2Threshold: number;     // ppm for recommendation (1000)
   aqiThreshold: number;     // for recommendation (100)

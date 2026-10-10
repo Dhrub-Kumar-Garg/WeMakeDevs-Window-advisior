@@ -1,4 +1,4 @@
-import type { ModelParams, HourlyForecast, CO2DataPoint, VentilationWindow } from './types';
+import type { ModelParams, HourlyForecast, VentilationWindow } from './types';
 
 // CO₂ Physics Model
 // C += [ (N × 5 / V) − (ACH / 3600) × (C − 420) ] × Δt
@@ -98,27 +98,36 @@ export function co2ReductionEstimate(aqi: number, windSpeed: number): 'HIGH' | '
   return 'LOW';
 }
 
-// Find best ventilation window in hourly forecast
-export function findBestVentilationWindow(forecast: HourlyForecast[]): VentilationWindow | null {
+// Find best contiguous 1-2h block under AQI threshold
+export function findBestVentilationWindow(forecast: HourlyForecast[], aqiThreshold: number): VentilationWindow | null {
   let bestScore = Infinity;
-  let bestHour = -1;
+  let bestIdx = -1;
 
-  for (const h of forecast) {
-    const score = h.aqi;
-    if (score < bestScore) {
-      bestScore = score;
-      bestHour = h.hour;
+  for (let i = 0; i < forecast.length; i++) {
+    if (forecast[i].aqi < aqiThreshold) {
+      if (forecast[i].aqi < bestScore) {
+        bestScore = forecast[i].aqi;
+        bestIdx = i;
+      }
     }
   }
 
-  if (bestHour === -1) return null;
+  if (bestIdx === -1) return null;
 
-  const entry = forecast.find(f => f.hour === bestHour)!;
+  // Check if the next hour is also under threshold to make it a 2h block
+  let endIdx = bestIdx;
+  if (bestIdx + 1 < forecast.length && forecast[bestIdx + 1].aqi < aqiThreshold) {
+    endIdx = bestIdx + 1;
+  }
+
+  const startEntry = forecast[bestIdx];
+  const endEntry = forecast[endIdx];
+
   return {
-    startHour: bestHour,
-    endHour: (bestHour + 1) % 24,
-    aqi: entry.aqi,
-    benefit: entry.co2ReductionEstimate,
+    startHour: startEntry.hour,
+    endHour: (endEntry.hour + 1) % 24,
+    aqi: startEntry.aqi,
+    benefit: startEntry.co2ReductionEstimate,
   };
 }
 

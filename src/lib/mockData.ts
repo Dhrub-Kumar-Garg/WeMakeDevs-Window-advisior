@@ -3,10 +3,11 @@ import { aqiToVentilationQuality, co2ReductionEstimate } from './co2Model';
 
 // Default model parameters
 export const DEFAULT_MODEL_PARAMS: ModelParams = {
-  roomVolume: 40,        // 4m × 5m × 2m
+  roomVolume: 36,        // 4m × 5m × 2m
   occupants: 1,
   achClosed: 0.4,
   achOpen: 4.0,
+  achOpenRange: [2, 6],
   outdoorBaseline: 420,
   co2Threshold: 1000,
   aqiThreshold: 100,

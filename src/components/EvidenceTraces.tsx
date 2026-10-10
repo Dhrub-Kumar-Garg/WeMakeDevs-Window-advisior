@@ -4,12 +4,6 @@ import { useState, useEffect } from 'react';
 import { tokens } from '@/design/tokens';
 
 export default function EvidenceTraces() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // SVG metrics
   const width = 1200;
   const height = 300;
@@ -20,14 +14,6 @@ export default function EvidenceTraces() {
   const minPPM = 400;
   const maxRel = 100;
   const minRel = 0;
-
-  if (!mounted) {
-    return (
-      <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
-        <div className="w-full max-w-7xl h-[300px]"></div>
-      </section>
-    );
-  }
 
   // Mock data for Experiment 1 (Sealed room, CO2 rising)
   const exp1Pts = 50;
@@ -76,10 +62,15 @@ export default function EvidenceTraces() {
     <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
       <div className="w-full max-w-7xl">
         <h2 className="font-serif italic text-3xl md:text-4xl text-[#111111] mb-2">Scientific Evidence</h2>
-        <p className="font-mono text-xs uppercase tracking-widest text-[#666666] mb-12">Physics Model vs MQ135 Relative Trend</p>
+        <div className="flex flex-col md:flex-row justify-between md:items-end mb-12 gap-4">
+          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">Indoor VOC/Gas Trend (MQ135) relative trend, not ppm</p>
+          <p className="font-mono text-[10px] text-[#666666]">
+            It only cross-checks that the trends agree in direction.
+          </p>
+        </div>
         
-        <div className="w-full overflow-x-auto">
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[1000px] h-auto">
+        <div className="w-full overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-[#ff5f1f] focus-visible:ring-offset-2" tabIndex={0} role="region" aria-label="Evidence traces scroll area">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[1000px] h-auto" role="img" aria-label="Physics Model vs MQ135 Relative Trend Chart">
             
             {/* Legend */}
             <g transform={`translate(${width - 250}, 15)`} fontFamily={tokens.fonts.mono} fontSize="11">

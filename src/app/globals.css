@@ -1,36 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
-
-/* ===== DESIGN TOKENS ===== */
-:root {
-  /* Backgrounds */
-  --bg-base: #F7F7F6;
-  --bg-surface: #FFFFFF;
-  --bg-panel: #F2F2F2;
-  
-  /* Text Hierarchy */
-  --text-primary: #1C1C1C;
-  --text-secondary: #666666;
-  --text-muted: #8E8E8E;
-  
-  /* Status Colors (Muted, Editorial) */
-  --status-safe: #4CA685;
-  --status-caution: #D48C29;
-  --status-danger: #D94A38;
-  --status-info: #4A7A96;
-
-  /* Data Lines */
-  --data-model: #4A7A96;
-  --data-sensor: #89789E;
-
-  /* Borders & Dividers */
-  --border-subtle: #EBEBEB;
-  --border-default: #E0E0E0;
-  --border-dark: #CCCCCC;
-
-  /* Fonts */
-  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+@theme {
+  --font-sans: var(--font-grotesk), system-ui, sans-serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, monospace;
+  --font-serif: var(--font-serif-ui), Georgia, serif;
+  --color-paper: #f8f9fc; --color-ink: #111111; --color-ink-dim: #666666;
+  --color-oxide: #00d4aa; --color-wait: #E8A200; --color-signal: #ff5f1f;
 }
 
 /* ===== BASE ===== */
@@ -43,8 +17,8 @@ html {
 }
 
 body {
-  background-color: var(--bg-base);
-  color: var(--text-primary);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.6;
@@ -92,21 +66,6 @@ body {
   100% { opacity: 0; transform: translateY(-90px) translateX(var(--drift, 0px)); }
 }
 
-/* ===== RECHARTS OVERRIDES ===== */
-.recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line {
-  stroke: var(--border-subtle) !important;
-}
-.recharts-text { fill: var(--text-secondary) !important; font-family: var(--font-mono) !important; font-size: 10px !important; }
-.recharts-tooltip-wrapper { filter: none !important; }
-.recharts-default-tooltip {
-  background: var(--bg-surface) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-  color: var(--text-primary) !important;
-}
-.recharts-tooltip-label { color: var(--text-secondary) !important; font-size: 11px !important; margin-bottom: 4px !important; }
 
 /* ===== TAILWIND LAYER ===== */
 @layer utilities {

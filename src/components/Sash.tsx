@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { predictCO2Trajectory } from '@/lib/co2Model';
 import { tokens } from '@/design/tokens';
@@ -9,171 +10,238 @@ import { DEFAULT_MODEL_PARAMS } from '@/lib/mockData';
 export default function Sash({ state }: { state: AdvisorState }) {
   const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const dragStartX = useRef<number | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
+  const [dim, setDim] = useState({ w: 1000, h: 600 });
   const modelParams = DEFAULT_MODEL_PARAMS;
 
-  const dragStartX = useRef<number | null>(null);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    setDim({ w: el.clientWidth, h: el.clientHeight });
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setDim({ w: entry.contentRect.width, h: entry.contentRect.height });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     setIsDragging(true);
-    e.target.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     dragStartX.current = e.clientX;
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !svgRef.current) return;
-    
-    const svgRect = svgRef.current.getBoundingClientRect();
-    const relativeX = Math.max(0, e.clientX - svgRect.left - 640);
-    const maxDragDistance = 200;
-    
-    const dragRatio = Math.min(1, relativeX / maxDragDistance);
-    const angle = dragRatio * 60;
-    
-    state.setSashAngle(angle);
-  };
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDragging || !svgRef.current) return;
+      const pt = svgRef.current.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = svgRef.current.getScreenCTM();
+      if (!ctm) return;
+      const svgPt = pt.matrixTransform(ctm.inverse());
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    setIsDragging(false);
-    e.target.releasePointerCapture(e.pointerId);
-    
-    // Check if it was a click (didn't move much)
-    if (dragStartX.current !== null) {
-      const delta = Math.abs(e.clientX - dragStartX.current);
-      if (delta < 10) {
-        state.setWindowState(state.windowState === 'open' ? 'closed' : 'open');
-        dragStartX.current = null;
-        return;
+      const hingeX = dim.w / 2;
+      const relativeX = Math.max(0, svgPt.x - hingeX);
+      const dragRatio = Math.min(1, relativeX / 150);
+      const angle = dragRatio * 60;
+      state.setSashAngle(angle);
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (!isDragging) return;
+      setIsDragging(false);
+      
+      if (dragStartX.current !== null) {
+        const delta = Math.abs(e.clientX - dragStartX.current);
+        if (delta < 10) {
+          state.setWindowState(state.windowState === 'open' ? 'closed' : 'open');
+          dragStartX.current = null;
+          return;
+        }
       }
-    }
-    dragStartX.current = null;
-    
-    // Snap back to real window state
-    state.setSashAngle(state.windowState === 'open' ? 60 : 0);
-  };
+      dragStartX.current = null;
+      // Snap open or closed based on angle
+      if (state.sashAngle > 30) {
+        state.setWindowState('open');
+        state.setSashAngle(60);
+      } else {
+        state.setWindowState('closed');
+        state.setSashAngle(0);
+      }
+    };
 
-  // When not dragging, ensure it matches actual state
+    if (isDragging) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
+    }
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [isDragging, state, dim.w]);
+
+  // Sync angle with state when not dragging
   useEffect(() => {
     if (!isDragging) {
       state.setSashAngle(state.windowState === 'open' ? 60 : 0);
     }
-  }, [state.windowState, isDragging]);
+  }, [state.windowState, isDragging]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Compute ghost trace
-  let ghostPath = '';
-  let isHarmful = false;
+  // Projection Chart
+  const isHarmful = state.outdoorAQI >= modelParams.aqiThreshold;
+  const showProjection = isDragging || state.windowState === 'open';
 
-  if (isDragging && state.sashAngle > 0) {
-    const projectedACH = modelParams.achClosed + (state.sashAngle / 60) * (modelParams.achOpen - modelParams.achClosed);
-    
-    // temporarily modify model params for prediction
-    const tempParams = { ...modelParams, achOpen: projectedACH };
-    
-    const trajectory = predictCO2Trajectory(
-      state.co2Estimated,
-      tempParams,
-      true, // open
-      60, // 60 mins
-      60
-    );
-    
-    // Map trajectory to SVG coordinates (x: 1000 to 1500, y: 300 to 700)
-    // Very naive mapping just for the visual ghost trace
-    const xStart = 1000;
-    const xEnd = 1500;
-    const yMax = 700; // 400 ppm
-    const yMin = 300; // 1200 ppm
-    
-    ghostPath = trajectory.map((pt, i) => {
-      const x = xStart + (i / 60) * (xEnd - xStart);
-      const yRatio = Math.min(1, Math.max(0, (pt.co2 - 400) / 800)); // 400 to 1200
-      const y = yMax - yRatio * (yMax - yMin);
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  // Projection dimensions
+  const xStart = dim.w * 0.55;
+  const xEnd = dim.w * 0.95;
+  const yMax = dim.h * 0.8;
+  const yMin = dim.h * 0.2;
+  const graphH = yMax - yMin;
+
+  const mapPt = (co2: number, i: number) => {
+    const x = xStart + (i / 60) * (xEnd - xStart);
+    // Range: 400 to Limit + 600
+    const topCO2 = modelParams.co2Threshold + 600;
+    const yRatio = Math.min(1, Math.max(0, (co2 - 400) / (topCO2 - 400)));
+    const y = yMax - yRatio * graphH;
+    return { x, y };
+  };
+
+  let pathClosed = '';
+  let bandPath = '';
+  let crossingLabel = null;
+
+  if (showProjection) {
+    const trajClosed = predictCO2Trajectory(state.co2Estimated, modelParams, false, 60, 60);
+    pathClosed = trajClosed.map((pt, i) => {
+      const p = mapPt(pt.co2, i);
+      return `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
     }).join(' ');
 
-    const finalCO2 = trajectory[trajectory.length - 1].co2;
-    if (finalCO2 > state.co2Estimated && state.outdoorAQI >= modelParams.aqiThreshold) {
-      isHarmful = true; // Bringing in bad air makes it worse or keeps it bad
-    } else if (state.outdoorAQI >= modelParams.aqiThreshold) {
-      isHarmful = true; // Outdoor air is just bad
+    const achLow = modelParams.achOpenRange ? modelParams.achOpenRange[0] : 2;
+    const achHigh = modelParams.achOpenRange ? modelParams.achOpenRange[1] : 6;
+    
+    // Scale ACH based on sash angle if dragging
+    const currentRatio = isDragging ? state.sashAngle / 60 : 1;
+    const currentLow = modelParams.achClosed + currentRatio * (achLow - modelParams.achClosed);
+    const currentHigh = modelParams.achClosed + currentRatio * (achHigh - modelParams.achClosed);
+
+    const trajLow = predictCO2Trajectory(state.co2Estimated, { ...modelParams, achOpen: currentLow }, true, 60, 60);
+    const trajHigh = predictCO2Trajectory(state.co2Estimated, { ...modelParams, achOpen: currentHigh }, true, 60, 60);
+
+    const ptsLow = trajLow.map((pt, i) => mapPt(pt.co2, i));
+    const ptsHigh = trajHigh.map((pt, i) => mapPt(pt.co2, i));
+
+    bandPath = [
+      ...ptsLow.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`),
+      ...ptsHigh.reverse().map(p => `L ${p.x} ${p.y}`),
+      'Z'
+    ].join(' ');
+
+    // Find crossing time for high ACH (optimistic)
+    const crossingIdx = trajHigh.findIndex(pt => pt.co2 <= modelParams.co2Threshold);
+    if (crossingIdx !== -1 && crossingIdx > 0 && state.co2Estimated > modelParams.co2Threshold) {
+      const crossPt = ptsHigh[trajHigh.length - 1 - crossingIdx]; // Reverse lookup due to reversal? No, just ptsHigh[crossingIdx]
+      const forwardPt = ptsHigh[crossingIdx];
+      crossingLabel = {
+        x: forwardPt.x,
+        y: forwardPt.y,
+        min: crossingIdx
+      };
     }
   }
 
-  // Sash geometry:
-  // Hinge at x=640, y=300 (top of window opening)
-  // Length = 300 (height of window opening)
-  const sashLength = 300;
-  // Convert angle to radians
-  const angleRad = (state.sashAngle * Math.PI) / 180;
-  
-  // Calculate bottom coordinate of the sash
-  const sashX = 640 + Math.sin(angleRad) * sashLength;
-  const sashY = 300 + Math.cos(angleRad) * sashLength;
+  const limitY = mapPt(modelParams.co2Threshold, 0).y;
+  const bandColor = isHarmful ? tokens.colors.signal : tokens.colors.oxide;
 
   return (
-    <>
-      <svg 
-        ref={svgRef}
-        className="absolute inset-0 w-full h-full pointer-events-none" 
-        viewBox="0 0 1600 900" 
-        preserveAspectRatio="xMidYMid slice"
-      >
-        {/* Ghost Trace */}
-        {isDragging && ghostPath && (
+    <div className="absolute inset-0 w-full h-full pointer-events-none">
+      
+      {/* Projection Chart SVG Layer */}
+      <svg ref={svgRef} className="absolute inset-0 w-full h-full z-0">
+        {showProjection && (
           <g>
-            <path 
-              d={ghostPath} 
-              fill="none" 
-              stroke={isHarmful ? tokens.colors.signal : tokens.colors.inkDim} 
-              strokeWidth="2" 
-              strokeDasharray="4 4" 
-            />
-            <text 
-              x="1510" 
-              y="500" 
-              fontFamily={tokens.fonts.mono} 
-              fontSize="12" 
-              fill={isHarmful ? tokens.colors.signal : tokens.colors.inkDim}
-            >
-              +60m PROJECTED
+            {/* Limit Hairline */}
+            <line x1={xStart} x2={xEnd} y1={limitY} y2={limitY} stroke={tokens.colors.inkDim} strokeWidth="1" strokeDasharray="4 4" />
+            <text x={xStart} y={limitY - 4} fontSize="10" fontFamily="var(--font-mono)" fill={tokens.colors.inkDim}>
+              LIMIT {modelParams.co2Threshold}
             </text>
+
+            {/* Closed Trajectory */}
+            <path d={pathClosed} fill="none" stroke={tokens.colors.ink} strokeWidth="2" strokeDasharray="2 2" />
+            <text x={xEnd} y={mapPt(predictCO2Trajectory(state.co2Estimated, modelParams, false, 60, 60)[59].co2, 59).y - 4} fontSize="10" fontFamily="var(--font-mono)" fill={tokens.colors.ink} textAnchor="end">
+              CLOSED (EST.)
+            </text>
+
+            {/* Open Trajectory Band */}
+            <path d={bandPath} fill={bandColor} opacity="0.2" />
+            
+            <text x={xEnd} y={mapPt(predictCO2Trajectory(state.co2Estimated, { ...modelParams, achOpen: (modelParams.achOpenRange?.[1]||6) }, true, 60, 60)[59].co2, 59).y + 12} fontSize="10" fontFamily="var(--font-mono)" fill={bandColor} textAnchor="end">
+              OPEN (ASSUMED ACH)
+            </text>
+
+            {/* Crossing marker */}
+            {crossingLabel && (
+              <g>
+                <circle cx={crossingLabel.x} cy={crossingLabel.y} r="3" fill={bandColor} />
+                <text x={crossingLabel.x} y={crossingLabel.y - 8} fontSize="10" fontFamily="var(--font-mono)" fill={bandColor} textAnchor="middle">
+                  ~{crossingLabel.min}m
+                </text>
+              </g>
+            )}
+            
+            {/* Note about hardware constraint */}
+            {isDragging && (
+              <text x={xEnd} y={yMax + 20} fontSize="10" fontFamily="var(--font-mono)" fill={tokens.colors.inkDim} textAnchor="end">
+                *DRAG PREVIEWS ONLY. NO DEVICE WRITE PATH.
+              </text>
+            )}
           </g>
         )}
+      </svg>
 
-        {/* The Sash Line */}
-        <line 
-          x1="640" 
-          y1="300" 
-          x2={sashX} 
-          y2={sashY} 
-          stroke={tokens.colors.ink} 
-          strokeWidth="6"
-        />
-        
-        {/* The Drag Handle (invisible but clickable area) */}
-        <circle 
-          cx={sashX} 
-          cy={sashY} 
-          r="40" 
-          fill="transparent" 
-          className="cursor-pointer pointer-events-auto"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        />
+      {/* HTML/CSS Sash Line - Framer Motion */}
+      <motion.div 
+        role="slider"
+        tabIndex={0}
+        aria-label="Window Sash"
+        aria-valuemin={0}
+        aria-valuemax={60}
+        aria-valuenow={state.sashAngle}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            state.setWindowState('open');
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+            state.setWindowState('closed');
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            state.setWindowState(state.windowState === 'open' ? 'closed' : 'open');
+          }
+        }}
+        className="absolute left-[calc(50%-3px)] top-[33.3%] h-[33.3%] w-[6px] origin-top pointer-events-auto cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-[#ff5f1f] focus-visible:ring-offset-2 z-10"
+        style={{ backgroundColor: tokens.colors.ink }}
+        animate={{ rotate: -state.sashAngle }}
+        transition={shouldReduceMotion || isDragging ? { duration: 0 } : { type: 'spring', bounce: 0.2, duration: 0.6 }}
+        onPointerDown={handlePointerDown}
+      >
+        {/* Invisible Click/Drag Target (larger hit area) */}
+        <div className="absolute inset-x-[-20px] inset-y-0 bg-transparent" />
         
         {/* Visible Handle Indicator */}
-        <circle 
-          cx={sashX} 
-          cy={sashY} 
-          r="8" 
-          fill={tokens.colors.paper} 
-          stroke={tokens.colors.ink} 
-          strokeWidth="2" 
-          className="pointer-events-none"
+        <div 
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 rounded-full pointer-events-none"
+          style={{ 
+            backgroundColor: tokens.colors.paper,
+            border: `2px solid ${tokens.colors.ink}` 
+          }}
         />
-      </svg>
-    </>
+      </motion.div>
+    </div>
   );
 }

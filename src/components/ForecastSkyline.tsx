@@ -6,9 +6,17 @@ import { findBestVentilationWindow } from '@/lib/co2Model';
 
 export default function ForecastSkyline({ state }: { state: AdvisorState }) {
   const { forecast } = state;
-  if (!forecast || forecast.length === 0) return null;
+  if (!forecast || forecast.length === 0) {
+    return (
+      <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
+        <div className="w-full max-w-7xl min-h-[400px] flex items-center justify-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">waiting for device...</p>
+        </div>
+      </section>
+    );
+  }
 
-  const bestWindow = findBestVentilationWindow(forecast);
+  const bestWindow = findBestVentilationWindow(forecast, state.modelParams.aqiThreshold);
 
   // SVG metrics
   const width = 1200;
@@ -16,9 +24,7 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
   const paddingX = 40;
   const paddingY = 80;
 
-  // Data ranges
   const maxAQI = Math.max(100, ...forecast.map(d => d.aqi));
-  const minAQI = 0; // baseline
 
   // Scales
   const getX = (index: number) => paddingX + (index / (forecast.length - 1)) * (width - paddingX * 2);
@@ -33,7 +39,6 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
     if (i === 0) {
       pathD += ` L ${x} ${y}`;
     } else {
-      const prevX = getX(i - 1);
       pathD += ` L ${x} ${getY(forecast[i-1].aqi)} L ${x} ${y}`;
     }
   });
@@ -49,10 +54,15 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
     <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
       <div className="w-full max-w-7xl">
         <h2 className="font-serif italic text-3xl md:text-4xl text-[#111111] mb-2">Outdoor Forecast</h2>
-        <p className="font-mono text-xs uppercase tracking-widest text-[#666666] mb-12">24h AQI Skyline</p>
+        <div className="flex flex-col md:flex-row justify-between md:items-end mb-12 gap-4">
+          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">24h AQI Skyline</p>
+          <p className="font-mono text-[10px] text-[#666666]">
+            Suitable clearing: AQI &lt; {state.modelParams.aqiThreshold} (Source: Open-Meteo)
+          </p>
+        </div>
         
-        <div className="w-full overflow-x-auto">
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[800px] h-auto font-mono text-[10px]">
+        <div className="w-full overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-[#ff5f1f] focus-visible:ring-offset-2" tabIndex={0} role="region" aria-label="Forecast timeline scroll area">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[800px] h-auto font-mono text-[10px]" role="img" aria-label="24-hour Air Quality Forecast Skyline">
             {/* Background grid lines */}
             <line x1={paddingX} y1={getY(100)} x2={width - paddingX} y2={getY(100)} stroke={tokens.colors.inkDim} strokeDasharray="4 4" strokeWidth="0.5" />
             <text x={paddingX - 5} y={getY(100) + 4} textAnchor="end" fill={tokens.colors.inkDim}>100</text>
@@ -86,7 +96,7 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
                 <rect 
                   x={getX(forecast.findIndex(f => f.hour === bestWindow.startHour))} 
                   y={paddingY} 
-                  width={getX(1) - getX(0)} 
+                  width={getX(bestWindow.endHour > bestWindow.startHour ? bestWindow.endHour - bestWindow.startHour : 1) - getX(0)} 
                   height={height - paddingY * 2} 
                   fill={tokens.colors.oxide} 
                   opacity="0.1" 
@@ -94,16 +104,34 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
                 
                 {/* Dimension line */}
                 <g transform={`translate(${getX(forecast.findIndex(f => f.hour === bestWindow.startHour))}, ${paddingY - 30})`}>
-                  <line x1="0" y1="0" x2={getX(1) - getX(0)} y2="0" stroke={tokens.colors.oxide} strokeWidth="1" />
+                  <line x1="0" y1="0" x2={getX(bestWindow.endHour > bestWindow.startHour ? bestWindow.endHour - bestWindow.startHour : 1) - getX(0)} y2="0" stroke={tokens.colors.oxide} strokeWidth="1" />
                   <line x1="0" y1="-5" x2="0" y2="5" stroke={tokens.colors.oxide} strokeWidth="1" />
-                  <line x1={getX(1) - getX(0)} y1="-5" x2={getX(1) - getX(0)} y2="5" stroke={tokens.colors.oxide} strokeWidth="1" />
-                  <text x={(getX(1) - getX(0))/2} y="-10" textAnchor="middle" fill={tokens.colors.oxide} fontWeight="bold">
+                  <line x1={getX(bestWindow.endHour > bestWindow.startHour ? bestWindow.endHour - bestWindow.startHour : 1) - getX(0)} y1="-5" x2={getX(bestWindow.endHour > bestWindow.startHour ? bestWindow.endHour - bestWindow.startHour : 1) - getX(0)} y2="5" stroke={tokens.colors.oxide} strokeWidth="1" />
+                  <text x={(getX(bestWindow.endHour > bestWindow.startHour ? bestWindow.endHour - bestWindow.startHour : 1) - getX(0))/2} y="-10" textAnchor="middle" fill={tokens.colors.oxide} fontWeight="bold">
                     CLEARING (AQI {bestWindow.aqi})
                   </text>
                 </g>
               </g>
             )}
 
+            {/* Hover columns */}
+            {forecast.map((d, i) => {
+              const xPos = getX(i);
+              const colW = i < forecast.length - 1 ? getX(i+1) - xPos : getX(1) - getX(0);
+              return (
+                <rect 
+                  key={`hover-${i}`}
+                  x={xPos - colW/2} 
+                  y={paddingY} 
+                  width={colW} 
+                  height={height - paddingY * 2} 
+                  fill="transparent" 
+                  className="hover:fill-black/5 transition-colors cursor-crosshair"
+                >
+                  <title>Hour: {String(d.hour).padStart(2, '0')}:00&#10;AQI: {d.aqi}&#10;PM2.5: {d.pm25.toFixed(1)} μg/m³</title>
+                </rect>
+              );
+            })}
           </svg>
         </div>
       </div>

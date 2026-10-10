@@ -1,165 +1,150 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { tokens } from '@/design/tokens';
 import Sash from '@/components/Sash';
+import { Stipple } from '@/components/Stipple';
 
-export default function SectionDrawing({ state }: { state: AdvisorState }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  // Adaptive stipple field
+export default function SectionDrawing({ state, focus }: { state: AdvisorState, focus?: string | null }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dim, setDim] = useState({ w: 1000, h: 600 });
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animationFrame: number;
-    let particles: {x: number, y: number, isIndoor: boolean, targetX: number, active: boolean}[] = [];
-
-    // Initialize random deterministic particles for both sides
-    for(let i=0; i<400; i++) {
-      particles.push({
-        x: 640 + Math.random() * (1600 - 640),
-        y: Math.random() * 900,
-        isIndoor: true,
-        targetX: 0,
-        active: false,
-      });
-      particles.push({
-        x: Math.random() * 600,
-        y: Math.random() * 900,
-        isIndoor: false,
-        targetX: 0,
-        active: false,
-      });
-    }
-
-    const render = () => {
-      const w = canvas.width;
-      const h = canvas.height;
-      
-      ctx.clearRect(0, 0, w, h);
-      
-      const indoorDensity = (state.co2Estimated - 420) / (1000 - 420);
-      const targetIndoorCount = Math.min(800, Math.max(0, indoorDensity * 400));
-      
-      const outdoorDensity = state.outdoorAQI / 100;
-      const targetOutdoorCount = Math.min(800, Math.max(0, outdoorDensity * 400));
-
-      const isVentilating = state.windowState === 'open' || state.sashAngle > 0;
-      const achSpeed = isVentilating ? state.ach * 1.5 : 0;
-      
-      // Consequence coloring: if outdoor air is worse (density > indoor), then incoming air is signal color.
-      // Wait, let's use the explicit model values.
-      const isHarmful = state.outdoorAQI >= 100; // Simplified threshold check based on typical logic
-
-      let currentIndoor = 0;
-      let currentOutdoor = 0;
-
-      for(let p of particles) {
-        if (p.isIndoor && currentIndoor > targetIndoorCount) continue;
-        if (!p.isIndoor && currentOutdoor > targetOutdoorCount) continue;
-
-        if (p.isIndoor) currentIndoor++;
-        if (!p.isIndoor) currentOutdoor++;
-
-        // Advection logic
-        if (isVentilating) {
-          // If indoor, drift left towards window (x=640)
-          if (p.isIndoor && p.y > 300 && p.y < 600) {
-            p.x -= achSpeed * (Math.random() * 0.5 + 0.5);
-            // Wrap around
-            if (p.x < 0) {
-              p.x = 1600;
-              p.y = Math.random() * 900;
-            }
-          }
-          // If outdoor, drift right towards window
-          if (!p.isIndoor && p.y > 300 && p.y < 600) {
-            p.x += achSpeed * (Math.random() * 0.5 + 0.5);
-            if (p.x > 1600) {
-              p.x = 0;
-              p.y = Math.random() * 900;
-            }
-          }
-        }
-
-        // Determine color
-        ctx.fillStyle = tokens.colors.ink;
-        
-        // If an outdoor particle crosses the wall into the room, and it's harmful, color it signal.
-        if (!p.isIndoor && p.x > 640) {
-           ctx.fillStyle = isHarmful ? tokens.colors.signal : tokens.colors.ink;
-        }
-        // If an indoor particle crosses out, color it ink (it's escaping).
-        
-        ctx.fillRect(p.x, p.y, 1.5, 1.5);
+    const el = containerRef.current;
+    if (!el) return;
+    
+    // Initial size
+    setDim({ w: el.clientWidth, h: el.clientHeight });
+    
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setDim({ w: entry.contentRect.width, h: entry.contentRect.height });
       }
-      
-      animationFrame = requestAnimationFrame(render);
-    };
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-    render();
-
-    return () => cancelAnimationFrame(animationFrame);
-  }, [state.co2Estimated, state.outdoorAQI, state.ach, state.windowState, state.sashAngle]);
+  const { w, h } = dim;
+  const isHarmful = state.outdoorAQI >= state.modelParams.aqiThreshold;
+  const isVentilating = state.windowState === 'open' || state.sashAngle > 0;
+  
+  const windowTopY = h * 0.333;
+  const windowBottomY = h * 0.666;
+  const wallX = w / 2;
+  const wallThickness = 40;
 
   return (
-    <div className="absolute inset-0 w-full h-full">
-      {/* SVG Linework & Solid Ink Poche */}
-      <svg 
-        viewBox="0 0 1600 900" 
-        className="absolute inset-0 w-full h-full" 
-        preserveAspectRatio="xMidYMid slice"
+    <div ref={containerRef} className="absolute inset-0 w-full h-full bg-[#f8f9fc] overflow-hidden">
+      
+      {/* 1. Outdoor Background Stipple */}
+      <div 
+        className="absolute top-0 bottom-0 left-0 w-1/2 overflow-hidden pointer-events-none"
+        style={{ opacity: focus === 'indoor' ? 0.2 : 1 }}
       >
-        {/* Wall geometry: Solid Ink */}
-        {/* x=640 is the wall. It is 40px thick. */}
-        {/* The window is from y=300 to y=600 */}
-        <rect x="640" y="0" width="40" height="300" fill={tokens.colors.ink} />
-        <rect x="640" y="600" width="40" height="300" fill={tokens.colors.ink} />
+         <Stipple 
+           density={Math.min(1, state.outdoorAQI / state.modelParams.aqiThreshold)} 
+           color={tokens.colors.inkDim} 
+           seed={1} 
+         />
+      </div>
+
+      {/* 2. Indoor Background Stipple */}
+      <div 
+        className="absolute top-0 bottom-0 left-1/2 w-1/2 overflow-hidden pointer-events-none"
+        style={{ opacity: focus === 'outdoor' ? 0.2 : 1 }}
+      >
+         <Stipple 
+           density={Math.min(1, state.co2Estimated / state.modelParams.co2Threshold)} 
+           color={tokens.colors.ink} 
+           seed={2} 
+         />
+      </div>
+
+      {/* 3. Incoming Air Stipple (Only when ventilating) */}
+      <div 
+        className="absolute top-0 bottom-0 left-1/2 w-1/2 overflow-hidden pointer-events-none"
+        style={{ opacity: isVentilating ? 1 : 0 }}
+      >
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            clipPath: `polygon(0 ${windowTopY}px, 100% ${windowTopY - h * 0.15}px, 100% ${windowBottomY + h * 0.15}px, 0 ${windowBottomY}px)`
+          }}
+        >
+          <Stipple 
+            density={Math.min(1, state.outdoorAQI / state.modelParams.aqiThreshold)} 
+            color={isHarmful ? tokens.colors.signal : tokens.colors.oxide} 
+            seed={3} 
+          />
+        </div>
+      </div>
+
+      {/* SVG Linework & Solid Ink Poche */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none text-[#111111]">
+        {/* Wall geometry: Solid Ink at 50% */}
+        <rect x={wallX - wallThickness/2} y={0} width={wallThickness} height={windowTopY} fill="currentColor" />
+        <rect x={wallX - wallThickness/2} y={windowBottomY} width={wallThickness} height={h - windowBottomY} fill="currentColor" />
         
         {/* Ground Line */}
-        <line x1="0" y1="880" x2="1600" y2="880" stroke={tokens.colors.ink} strokeWidth="2" />
+        <line x1={0} y1={h * 0.9} x2={w} y2={h * 0.9} stroke="currentColor" strokeWidth="2" />
         
-        {/* Floor hatched or solid block below ground */}
-        <rect x="0" y="880" width="1600" height="20" fill={tokens.colors.inkDim} opacity="0.1" />
-
-        {/* Minimal human glyphs */}
-        <g transform="translate(1000, 700)" stroke={tokens.colors.ink} strokeWidth="1.5" fill="none">
-          {Array.from({ length: state.occupants }).map((_, i) => (
-            <g key={i} transform={`translate(${i * 80}, 0)`}>
-              <circle cx="20" cy="20" r="12" />
-              <path d="M 20 32 L 20 120 M 20 60 L 0 90 M 20 60 L 40 90 M 20 120 L 0 180 M 20 120 L 40 180" />
-            </g>
-          ))}
-        </g>
-
-        {/* Labels & Annotations */}
-        <g fontFamily="Space Mono" fontSize="16" fill={tokens.colors.inkDim}>
-          <text x="80" y="80">OUTDOORS</text>
-          <text x="80" y="110">AQI: {state.outdoorAQI}</text>
-          
-          <text x="1400" y="80" textAnchor="end">INDOORS</text>
-          <text x="1400" y="110" textAnchor="end">ESTIMATED CO₂: {state.co2Estimated} ppm</text>
-          
-          {/* Dimension Line across opening (showing ACH) */}
-          <line x1="610" y1="450" x2="710" y2="450" stroke={tokens.colors.inkDim} strokeWidth="1" strokeDasharray="4 4" />
-          <text x="730" y="455" fontSize="14">ACH: {state.ach.toFixed(1)}</text>
-        </g>
+        {/* ACH dimension line (only show when ventilating) */}
+        {isVentilating && (
+          <g>
+            <line x1={wallX - 40} y1={h * 0.5} x2={wallX + 40} y2={h * 0.5} stroke={tokens.colors.inkDim} strokeWidth="1" strokeDasharray="4 4" />
+            <text x={wallX + 50} y={h * 0.5 + 4} fontSize="12" fontFamily="var(--font-mono)" fill={tokens.colors.inkDim}>
+              Air Changes per Hour (ACH): {state.ach.toFixed(1)}
+            </text>
+          </g>
+        )}
       </svg>
+
+      {/* Labels */}
+      {/* Outdoor Label */}
+      <div 
+        className="absolute top-8 left-8 sm:top-12 sm:left-12 font-mono text-[10px] sm:text-sm text-[#666666]"
+        style={{ opacity: focus === 'indoor' ? 0.2 : 1 }}
+      >
+        OUTDOOR AQI
+        <div className="text-xl sm:text-4xl text-[#111111] mt-1 sm:mt-2">{state.outdoorAQI}</div>
+        <div className="text-[10px] sm:text-xs mt-1">Limit: {state.modelParams.aqiThreshold}</div>
+        <div className="text-[8px] sm:text-[10px] mt-4 uppercase opacity-50 hidden sm:block">Density = AQI / Threshold</div>
+      </div>
+
+      {/* Indoor Label */}
+      <div 
+        className="absolute top-8 right-8 sm:top-12 sm:right-12 font-mono text-[10px] sm:text-sm text-[#666666] text-right"
+        style={{ opacity: focus === 'outdoor' ? 0.2 : 1 }}
+      >
+        ESTIMATED CO₂
+        <div className="text-xl sm:text-6xl tracking-tighter text-[#111111] mt-1 sm:mt-2">
+          {state.co2Estimated} <span className="text-xs sm:text-2xl tracking-normal text-[#666666]">ppm</span>
+        </div>
+        <div className="text-[8px] sm:text-[10px] mt-4 uppercase opacity-50 hidden sm:block">Density = CO₂ / Limit</div>
+        
+        {/* Limit tick indicator */}
+        <div className="mt-2 flex flex-col items-end gap-1">
+          <div className="w-24 sm:w-32 h-1 bg-[#e2e8f0] relative">
+            <div 
+              className="absolute top-0 left-0 h-full bg-[#111111]" 
+              style={{ width: `${Math.min(100, (state.co2Estimated / state.modelParams.co2Threshold) * 100)}%` }} 
+            />
+            <div className="absolute top-[-4px] left-full w-0.5 h-3 bg-[#ff5f1f]" />
+          </div>
+          <div className="text-[10px] sm:text-xs mt-1">Limit: {state.modelParams.co2Threshold} ppm</div>
+        </div>
+      </div>
+
+      {/* PIR Marker */}
+      <div className="absolute bottom-6 right-8 sm:right-12 font-mono text-[8px] sm:text-[10px] bg-white/80 backdrop-blur px-3 py-2 border border-[#e2e8f0] text-[#111111] uppercase z-10">
+        PIR: {state.occupants > 0 ? 'Presence Detected' : 'Not Detected'} &middot; Assumed Occupants {state.occupants}
+      </div>
 
       {/* Sash rendering and interaction */}
       <Sash state={state} />
       
-      {/* Canvas for Stipple Field superimposed */}
-      <canvas 
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none mix-blend-multiply"
-        width="1600"
-        height="900"
-      />
     </div>
   );
 }
