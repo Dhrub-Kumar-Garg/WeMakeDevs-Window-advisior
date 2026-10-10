@@ -8,13 +8,6 @@ export default function Lighting() {
         background={true}
         environmentIntensity={0.8}
       />
-      <ambientLight intensity={0.2} />
-      <directionalLight 
-        position={[2, 4, 3]} 
-        intensity={0.5} 
-        castShadow 
-        shadow-bias={-0.0001}
-      />
       <ContactShadows 
         position={[0, 0, 1.9]} 
         opacity={0.5} 

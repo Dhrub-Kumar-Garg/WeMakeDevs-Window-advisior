@@ -9,8 +9,12 @@ import Lighting from './Lighting';
 import Effects from './Effects';
 import { useSceneInputs } from './useSceneInputs';
 
+import WindowAssembly from './WindowAssembly';
+import Sky from './Sky';
+import Dust from './Dust';
+
 export default function SceneRoot() {
-  const { reducedMotion } = useSceneInputs();
+  const { reducedMotion, co2Ratio } = useSceneInputs();
   const [dpr, setDpr] = useState(1.5);
 
   if (reducedMotion) {
@@ -33,10 +37,31 @@ export default function SceneRoot() {
         
         <PerspectiveCamera makeDefault position={[1.5, 1.2, 4]} fov={50} />
         
+        <Sky />
         <Room />
+        <WindowAssembly />
         <Lighting />
+        <Dust />
         <Effects />
+        
+        {/* Indoor tint based on CO2 */}
+        <mesh position={[0, 1.5, 2]}>
+          <boxGeometry args={[6, 4, 6]} />
+          <meshBasicMaterial 
+            color="#5a4d45" 
+            transparent 
+            opacity={Math.min(0.2, (co2Ratio - 0.4) * 0.15)} 
+            side={THREE.BackSide} 
+            depthWrite={false}
+          />
+        </mesh>
       </Canvas>
+      {/* Captions layer */}
+      <div className="absolute bottom-4 right-4 text-right font-mono text-[10px] text-[#111111]/40 pointer-events-none">
+        <p>sky haze is illustrative</p>
+        <p>illustrative airflow, speed ∝ assumed ACH</p>
+        <p>visualisation of estimated CO2; CO2 itself is invisible</p>
+      </div>
     </div>
   );
 }
