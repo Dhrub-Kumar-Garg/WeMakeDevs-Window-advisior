@@ -3,7 +3,8 @@
 import { Suspense, useState } from 'react';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { useAdvisorState } from '@/hooks/useAdvisorState';
-import SectionDrawing from '@/components/SectionDrawing';
+import dynamic from 'next/dynamic';
+const SceneRoot = dynamic(() => import('@/components/scene/SceneRoot'), { ssr: false });
 import VerdictWord from '@/components/VerdictWord';
 import ForecastSkyline from '@/components/ForecastSkyline';
 import EvidenceTraces from '@/components/EvidenceTraces';
@@ -64,7 +65,7 @@ function DashboardContent() {
 
           {/* Left ~2/3: Drawing edge to edge */}
           <div className="relative w-full md:w-[66.666%] h-[60vh] md:h-full">
-            <SectionDrawing state={state} focus={focus} />
+            <SceneRoot />
           </div>
 
         </div>
