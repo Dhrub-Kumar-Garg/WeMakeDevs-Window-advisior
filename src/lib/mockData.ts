@@ -16,7 +16,11 @@ export const DEFAULT_MODEL_PARAMS: ModelParams = {
 // Generate simulated 24-hour hourly forecast
 export function generateHourlyForecast(): HourlyForecast[] {
   // Pattern: clean at night/morning, peaks midday (traffic), eases evening
-  const baseAQI = [32, 28, 26, 24, 25, 30, 38, 52, 72, 85, 92, 98, 105, 110, 104, 95, 88, 78, 65, 52, 45, 40, 36, 34];
+  const baseAQI = [
+    30, 28, 26, 25, 27, 30, 35, 45,
+    85, 130, 145, 155, 160, 170, 165, 150, 140, 135,
+    80, 45, 38, 35, 32, 30
+  ];
   const windSpeeds = [8, 9, 10, 11, 12, 10, 8, 6, 4, 3, 3, 4, 3, 3, 4, 5, 6, 8, 9, 10, 11, 10, 9, 8];
 
   return baseAQI.map((aqi, hour) => {
@@ -96,8 +100,8 @@ export const INITIAL_SENSOR_DATA: SensorData = {
   temperature: 24.1,
   pirPresence: true,
   windowOpen: false,
-  outdoorAQI: 43,
-  outdoorPM25: 9.2,
+  outdoorAQI: 145,
+  outdoorPM25: 55.2,
   outdoorTemp: 19.3,
 };
 

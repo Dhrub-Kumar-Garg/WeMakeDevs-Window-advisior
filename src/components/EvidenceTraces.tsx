@@ -26,10 +26,10 @@ export default function EvidenceTraces() {
   const exp2MQ135 = Array.from({length: exp2Pts}).map((_, i) => 85 - Math.pow(i/exp2Pts, 0.6) * 50 + (Math.sin(i*9.8)*5 - 2.5));
 
   const renderTrace = (physicsData: number[], mq135Data: number[], title: string, caption: string) => {
-    const getX = (i: number) => paddingX + (i / (physicsData.length - 1)) * ((width / 2) - paddingX * 2);
+    const getX = (i: number) => (paddingX + (i / (physicsData.length - 1)) * ((width / 2) - paddingX * 2)).toFixed(1);
     
-    const getYPhysics = (ppm: number) => height - paddingY - ((ppm - minPPM) / (maxPPM - minPPM)) * (height - paddingY * 2);
-    const getYMQ135 = (val: number) => height - paddingY - ((val - minRel) / (maxRel - minRel)) * (height - paddingY * 2);
+    const getYPhysics = (ppm: number) => (height - paddingY - ((ppm - minPPM) / (maxPPM - minPPM)) * (height - paddingY * 2)).toFixed(1);
+    const getYMQ135 = (val: number) => (height - paddingY - ((val - minRel) / (maxRel - minRel)) * (height - paddingY * 2)).toFixed(1);
 
     const pathPhysics = physicsData.map((d, i) => `${i===0?'M':'L'} ${getX(i)} ${getYPhysics(d)}`).join(' ');
     const pathMQ135 = mq135Data.map((d, i) => `${i===0?'M':'L'} ${getX(i)} ${getYMQ135(d)}`).join(' ');
@@ -82,10 +82,10 @@ export default function EvidenceTraces() {
             </g>
 
             <g transform="translate(0, 0)">
-              {renderTrace(exp1Physics, exp1MQ135, "Experiment 01", "Sealed room + occupants. Estimate rises.")}
+              {renderTrace(exp1Physics, exp1MQ135, "Experiment 01 (illustrative model run, not recorded data)", "Sealed room + occupants. Estimate rises.")}
             </g>
             <g transform={`translate(${width / 2}, 0)`}>
-              {renderTrace(exp2Physics, exp2MQ135, "Experiment 02", "Window open. Estimate falls toward 420.")}
+              {renderTrace(exp2Physics, exp2MQ135, "Experiment 02 (illustrative model run, not recorded data)", "Window open. Estimate falls toward 420.")}
             </g>
 
           </svg>

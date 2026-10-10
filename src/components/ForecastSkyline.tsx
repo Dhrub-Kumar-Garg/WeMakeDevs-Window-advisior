@@ -128,7 +128,7 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
                   fill="transparent" 
                   className="hover:fill-black/5 transition-colors cursor-crosshair"
                 >
-                  <title>Hour: {String(d.hour).padStart(2, '0')}:00&#10;AQI: {d.aqi}&#10;PM2.5: {d.pm25.toFixed(1)} μg/m³</title>
+                  <title>{`Hour: ${String(d.hour).padStart(2, '0')}:00\nAQI: ${d.aqi}\nPM2.5: ${d.pm25.toFixed(1)} μg/m³`}</title>
                 </rect>
               );
             })}

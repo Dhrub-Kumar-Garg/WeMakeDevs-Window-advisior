@@ -2,10 +2,14 @@
 
 export default function PlumbingLine() {
   const hardware = [
-    { name: "ESP32 + PIR Sensor", role: "Detects occupancy to scale CO2 assumption.", status: "PLANNED" },
-    { name: "ESP32 + Servo", role: "Physically actuates the window sash.", status: "PLANNED" },
-    { name: "Open-Meteo API", role: "Provides hourly AQI, PM2.5, and wind speed forecasts.", status: "LIVE" },
+    { name: "ESP32", role: "Main microcontroller handling sensors and network.", status: "PLANNED" },
+    { name: "LM35 (Temperature)", role: "Reads indoor temperature.", status: "PLANNED" },
+    { name: "PIR (Occupancy)", role: "Detects human presence to scale CO2 assumption.", status: "PLANNED" },
+    { name: "MQ135 (VOC/Gas)", role: "Provides relative trend of indoor air quality.", status: "PLANNED" },
+    { name: "Push Button", role: "Physical toggle for window state.", status: "PLANNED" },
+    { name: "LEDs", role: "Physical state indicators.", status: "PLANNED" },
     { name: "Cloud API / Backend", role: "Serves the latest sensor readings to the frontend.", status: "PLANNED" },
+    { name: "Open-Meteo API", role: "Provides hourly AQI, PM2.5, and wind speed forecasts.", status: "LIVE" },
     { name: "Next.js Frontend", role: "Runs the mass-balance simulation and renders the UI.", status: "LIVE" }
   ];
 
