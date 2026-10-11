@@ -57,6 +57,7 @@ export interface VentilationWindow {
   endHour: number;
   aqi: number;
   benefit: 'HIGH' | 'MEDIUM' | 'LOW';
+  isOvernight?: boolean;
 }
 
 export interface CO2DataPoint {

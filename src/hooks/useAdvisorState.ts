@@ -3,8 +3,9 @@ import { useSearchParams } from 'next/navigation';
 import { useEnvironmentStore } from '@/store/useEnvironmentStore';
 import type { Verdict } from '@/lib/decision';
 import type { CO2DataPoint, HourlyForecast, EventEntry, ModelParams, WindowState } from '@/lib/types';
-import { fetchLatestReading, fetchOutdoorForecast, getSourceStatus, type SourceStatus } from '@/lib/dataSource';
+import { fetchLatestReading, fetchOutdoorForecast, type SourceStatus } from '@/lib/dataSource';
 import { findBestVentilationWindow, updateCO2, computeRecommendation } from '@/lib/co2Model';
+import { useSystemStatus, type SystemStatus } from './useSystemStatus';
 
 export interface AdvisorState {
   co2Estimated: number;
@@ -16,6 +17,7 @@ export interface AdvisorState {
   modelParams: ModelParams;
   waitUntil?: string;
   sourceStatus: SourceStatus;
+  systemStatus: SystemStatus;
   forecast: HourlyForecast[];
   history: CO2DataPoint[];
   events: EventEntry[];
@@ -36,6 +38,8 @@ export function useAdvisorState(): AdvisorState {
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === '1';
 
+  const systemStatus = useSystemStatus();
+
   // Compute ACH and waitUntil inline
   const ach = store.windowState === 'closed' 
     ? store.modelParams.achClosed 
@@ -45,7 +49,8 @@ export function useAdvisorState(): AdvisorState {
   if (store.recommendation === 'WAIT' && store.hourlyForecast.length > 0) {
     const bestWindow = findBestVentilationWindow(store.hourlyForecast, store.modelParams.aqiThreshold);
     if (bestWindow) {
-      waitUntil = String(bestWindow.startHour).padStart(2, '0') + ':00';
+      const timeStr = String(bestWindow.startHour).padStart(2, '0') + ':00';
+      waitUntil = bestWindow.isOvernight ? `${timeStr} (overnight)` : timeStr;
     }
   }
 
@@ -63,7 +68,7 @@ export function useAdvisorState(): AdvisorState {
       const dt = hoursAhead * 3600; // seconds
       predictedCO2 = Math.round(updateCO2(store.sensorData.co2Estimated, activeOccupants, store.modelParams.roomVolume, ACH, dt));
       
-      const targetForecast = store.hourlyForecast.find(f => f.time === store.scrubHour) || store.hourlyForecast[0];
+      const targetForecast = store.hourlyForecast.find(f => f.hour === store.scrubHour) || store.hourlyForecast[0];
       predictedVerdict = computeRecommendation(predictedCO2, targetForecast.aqi, store.modelParams, false) as Verdict;
     } else {
       predictedVerdict = store.recommendation as Verdict;
@@ -137,7 +142,8 @@ export function useAdvisorState(): AdvisorState {
     verdict: store.recommendation as Verdict, // Maps Recommendation to Verdict
     modelParams: store.modelParams,
     waitUntil,
-    sourceStatus: getSourceStatus(store.lastUpdated, isDemo),
+    sourceStatus: systemStatus.status,
+    systemStatus,
     forecast: store.hourlyForecast,
     history: store.historicalCO2,
     events: store.events,

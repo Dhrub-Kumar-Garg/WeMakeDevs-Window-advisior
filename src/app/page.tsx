@@ -5,7 +5,6 @@ import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { useAdvisorState } from '@/hooks/useAdvisorState';
 import dynamic from 'next/dynamic';
 const SceneRoot = dynamic(() => import('@/components/scene/SceneRoot'), { ssr: false });
-import VerdictWord from '@/components/VerdictWord';
 import ForecastSkyline from '@/components/ForecastSkyline';
 import EvidenceTraces from '@/components/EvidenceTraces';
 import PlumbingLine from '@/components/PlumbingLine';
@@ -36,7 +35,7 @@ function DashboardContent() {
         <TopRail state={state} />
 
         {/* Hero Left Overlay */}
-        <section id="now" className="relative w-full min-h-[40svh] md:h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none bg-[#f8f9fc] md:bg-transparent border-b border-[#e2e8f0] md:border-none">
+        <section id="now" className="relative w-full min-h-[40svh] md:h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none bg-[#f8f9fc] md:bg-transparent border-b border-[#e2e8f0] md:border-none pb-24 md:pb-0">
           <LeftOverlay state={state} setFocus={setFocus} />
           <EvidenceStrip state={state} />
         </section>

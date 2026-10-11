@@ -3,25 +3,10 @@ import { useEnvironmentStore } from '@/store/useEnvironmentStore';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 
 export default function TopRail({ state }: { state: AdvisorState }) {
-  const store = useEnvironmentStore();
-  const [ageText, setAgeText] = useState('just now');
+  const { status, ageText } = state.systemStatus;
 
-  useEffect(() => {
-    if (state.isDemo) {
-      setAgeText('demo active');
-      return;
-    }
-    const interval = setInterval(() => {
-      const age = Date.now() - store.lastUpdated;
-      if (age < 10000) setAgeText('just now');
-      else if (age < 60000) setAgeText(`${Math.floor(age / 1000)}s ago`);
-      else setAgeText(`${Math.floor(age / 60000)}m ago`);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [state.isDemo, store.lastUpdated]);
-
-  const badgeColor = state.sourceStatus === 'LIVE' ? 'bg-[#00d8a5] text-black' : 
-                     state.sourceStatus === 'STALE' ? 'bg-[#eab308] text-black' : 
+  const badgeColor = status === 'LIVE' ? 'bg-[#00d8a5] text-black' : 
+                     status === 'STALE' ? 'bg-[#eab308] text-black' : 
                      'bg-[#ff5f1f] text-white';
 
   return (
@@ -34,13 +19,15 @@ export default function TopRail({ state }: { state: AdvisorState }) {
       
       <div className="flex justify-center items-center gap-2 text-white shrink-0" suppressHydrationWarning>
         <div className="hidden sm:flex items-center gap-1.5 mr-2" suppressHydrationWarning>
-          <div className={`w-2 h-2 rounded-full ${state.verdict === 'OPEN WINDOW' ? 'bg-[#00d8a5]' : 'bg-[#333]'}`} />
-          <div className={`w-2 h-2 rounded-full ${state.verdict === 'WAIT FOR BETTER AIR' ? 'bg-[#eab308]' : 'bg-[#333]'}`} />
-          <div className={`w-2 h-2 rounded-full ${state.verdict === 'KEEP WINDOW CLOSED' ? 'bg-[#ff5f1f]' : 'bg-[#333]'}`} />
-          <span className="ml-1 opacity-90" style={{ color: state.verdict === 'WAIT FOR BETTER AIR' ? '#eab308' : state.verdict === 'OPEN WINDOW' ? '#00d8a5' : '#ff5f1f' }}>{state.verdict}</span>
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'OPEN_WINDOW' ? 'bg-[#00d8a5]' : 'bg-[#333]'}`} />
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'WAIT' ? 'bg-[#eab308]' : 'bg-[#333]'}`} />
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'KEEP_CLOSED' ? 'bg-[#ff5f1f]' : 'bg-[#333]'}`} />
+          <span className="ml-1 opacity-90" style={{ color: state.verdict === 'WAIT' ? '#eab308' : state.verdict === 'OPEN_WINDOW' ? '#00d8a5' : '#ff5f1f' }}>
+            {state.verdict === 'WAIT' ? 'WAIT' : state.verdict === 'OPEN_WINDOW' ? 'OPEN' : 'CLOSED'}
+          </span>
         </div>
         <span suppressHydrationWarning className={`px-2 py-0.5 font-bold ${badgeColor}`}>
-          {state.sourceStatus}
+          {status}
         </span>
         <span suppressHydrationWarning className="opacity-70 whitespace-nowrap hidden md:inline">last reading {ageText}</span>
       </div>

@@ -10,13 +10,13 @@ export default function Lighting() {
       <Environment 
         files="/hdri/snow_field_puresky_1k.hdr" 
         background={true}
-        environmentIntensity={0.2}
+        environmentIntensity={0.9}
       />
       {/* Soft cool fill */}
-      <ambientLight intensity={0.3} color="#b4d5ff" />
+      <ambientLight intensity={0.85} color="#dbeafe" />
       
       {/* Soft cool hemisphere fill */}
-      <hemisphereLight intensity={0.2} color="#ffffff" groundColor="#8C735C" />
+      <hemisphereLight intensity={1.1} color="#ffffff" groundColor="#8C735C" />
 
       {/* Key light from the window casting a warm patch on the floor */}
       <primitive object={target} />

@@ -61,8 +61,10 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
               ppm est. CO₂
             </span>
           </div>
-          <div className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5">
-            limit {targetCO2}
+          <div suppressHydrationWarning className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5 flex items-center gap-1.5">
+            <span>limit {targetCO2}</span>
+            <span>•</span>
+            <span>{state.systemStatus.status} ({state.systemStatus.ageText})</span>
           </div>
         </div>
       </div>

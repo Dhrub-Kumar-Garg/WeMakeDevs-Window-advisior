@@ -152,8 +152,8 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
           )}
         </div>
 
-        <p className="mt-6 lg:mt-12 font-mono text-[10px] lg:text-xs opacity-60" style={{ color: textColor }}>
-          Estimates only: CO₂ is modelled, forecast is modelled.
+        <p suppressHydrationWarning className="mt-6 lg:mt-12 font-mono text-[10px] lg:text-xs opacity-60" style={{ color: textColor }}>
+          Estimates only: CO₂ is modelled, forecast is modelled. • {state.systemStatus.status} (last reading {state.systemStatus.ageText})
         </p>
       </div>
     </div>

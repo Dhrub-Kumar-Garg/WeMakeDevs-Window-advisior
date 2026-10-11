@@ -2,13 +2,18 @@ import { useState, useRef, KeyboardEvent } from 'react';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 
 function getAQIColor(aqi: number) {
-  if (aqi <= 50) return '#00d8a5'; // Good
-  if (aqi <= 100) return '#eab308'; // Moderate
-  if (aqi <= 150) return '#ff5f1f'; // Unhealthy for sensitive
-  return '#ef4444'; // Unhealthy/Hazardous
+  if (aqi < 90) return '#00d8a5'; // teal = AQI under 100
+  if (aqi <= 110) return '#eab308'; // amber = borderline
+  return '#ef4444'; // red = above the limit
 }
 
-import EvidenceStrip from './EvidenceStrip';
+function getHourTextColor(aqi: number) {
+  // AA contrast check:
+  // On red (#ef4444), white (#ffffff) has 4.5+:1 contrast.
+  // On teal (#00d8a5) and amber (#eab308), ink (#111111) has > 10:1 contrast.
+  if (aqi > 110) return '#ffffff';
+  return '#111111';
+}
 
 export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
   const stripRef = useRef<HTMLDivElement>(null);
@@ -69,8 +74,22 @@ export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col justify-end pointer-events-auto">
-      <div className="px-4 pb-1 pt-1.5 bg-[rgba(244,240,234,0.85)] text-[10px] font-mono text-gray-500 opacity-80 border-t border-[#111111]/5">
-        DRAG TO PREDICT CO₂ & VERDICT
+      <div className="px-3 pb-1 pt-1 bg-[rgba(244,240,234,0.92)] text-[9px] sm:text-[11px] font-mono text-[#111111] flex items-center justify-between gap-1.5 border-t border-[#111111]/15 overflow-x-auto whitespace-nowrap">
+        <span className="font-semibold tracking-wide text-[9px] sm:text-[11px]">DRAG TO PREDICT</span>
+        <div className="flex items-center gap-2 sm:gap-3 text-[8.5px] sm:text-[10px]">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm bg-[#00d8a5] inline-block border border-black/10" />
+            <span>teal = AQI under 100</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm bg-[#eab308] inline-block border border-black/10" />
+            <span>amber = borderline</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm bg-[#ef4444] inline-block border border-black/10" />
+            <span>red = above the limit</span>
+          </span>
+        </div>
       </div>
       <div 
         ref={stripRef}
@@ -85,6 +104,7 @@ export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
       >
         {forecast.map((f, i) => {
           const color = getAQIColor(f.aqi);
+          const textColor = getHourTextColor(f.aqi);
           const isBest = bestWindowStart === f.hour;
           return (
             <div key={`${f.hour}-${i}`} className="flex-1 h-full border-r border-black/10 last:border-0 relative group" style={{ backgroundColor: color }}>
@@ -97,7 +117,10 @@ export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
               {f.hour === currentForecastHour && (
                 <div className="absolute top-0 bottom-0 left-1/2 w-[2px] bg-black shadow-lg z-20" />
               )}
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-mono opacity-40 font-bold mix-blend-overlay">
+              <div 
+                className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[11px] font-mono font-bold select-none pointer-events-none"
+                style={{ color: textColor }}
+              >
                 {String(f.hour).padStart(2, '0')}
               </div>
             </div>

@@ -98,37 +98,82 @@ export function co2ReductionEstimate(aqi: number, windSpeed: number): 'HIGH' | '
   return 'LOW';
 }
 
+export const DEFAULT_ALLOWED_WINDOW_HOURS: [number, number] = [6, 22];
+
 // Find best contiguous 1-2h block under AQI threshold
-export function findBestVentilationWindow(forecast: HourlyForecast[], aqiThreshold: number): VentilationWindow | null {
-  let bestScore = Infinity;
-  let bestIdx = -1;
+// Prefers daytime window (06:00-22:00); falls back to overnight if only clean hours are overnight
+export function findBestVentilationWindow(
+  forecast: HourlyForecast[], 
+  aqiThreshold: number,
+  allowedHours: [number, number] = DEFAULT_ALLOWED_WINDOW_HOURS
+): VentilationWindow | null {
+  if (!forecast || forecast.length === 0) return null;
+
+  const [dayStart, dayEnd] = allowedHours;
+
+  // First pass: try to find the cleanest hour within allowed daytime hours (06:00 to 22:00)
+  let bestDayScore = Infinity;
+  let bestDayIdx = -1;
 
   for (let i = 0; i < forecast.length; i++) {
-    if (forecast[i].aqi < aqiThreshold) {
-      if (forecast[i].aqi < bestScore) {
-        bestScore = forecast[i].aqi;
-        bestIdx = i;
+    const f = forecast[i];
+    const isDaytime = f.hour >= dayStart && f.hour < dayEnd;
+    if (isDaytime && f.aqi < aqiThreshold) {
+      if (f.aqi < bestDayScore) {
+        bestDayScore = f.aqi;
+        bestDayIdx = i;
       }
     }
   }
 
-  if (bestIdx === -1) return null;
-
-  // Check if the next hour is also under threshold to make it a 2h block
-  let endIdx = bestIdx;
-  if (bestIdx + 1 < forecast.length && forecast[bestIdx + 1].aqi < aqiThreshold) {
-    endIdx = bestIdx + 1;
+  if (bestDayIdx !== -1) {
+    let endIdx = bestDayIdx;
+    if (bestDayIdx + 1 < forecast.length && forecast[bestDayIdx + 1].aqi < aqiThreshold) {
+      endIdx = bestDayIdx + 1;
+    }
+    const startEntry = forecast[bestDayIdx];
+    const endEntry = forecast[endIdx];
+    return {
+      startHour: startEntry.hour,
+      endHour: (endEntry.hour + 1) % 24,
+      aqi: startEntry.aqi,
+      benefit: startEntry.co2ReductionEstimate,
+      isOvernight: false,
+    };
   }
 
-  const startEntry = forecast[bestIdx];
-  const endEntry = forecast[endIdx];
+  // Second pass: only clean hours are outside 06:00-22:00 (overnight)
+  let bestOvernightScore = Infinity;
+  let bestOvernightIdx = -1;
 
-  return {
-    startHour: startEntry.hour,
-    endHour: (endEntry.hour + 1) % 24,
-    aqi: startEntry.aqi,
-    benefit: startEntry.co2ReductionEstimate,
-  };
+  for (let i = 0; i < forecast.length; i++) {
+    const f = forecast[i];
+    const isOvernightHour = f.hour < dayStart || f.hour >= dayEnd;
+    if (isOvernightHour && f.aqi < aqiThreshold) {
+      if (f.aqi < bestOvernightScore) {
+        bestOvernightScore = f.aqi;
+        bestOvernightIdx = i;
+      }
+    }
+  }
+
+  if (bestOvernightIdx !== -1) {
+    let endIdx = bestOvernightIdx;
+    if (bestOvernightIdx + 1 < forecast.length && forecast[bestOvernightIdx + 1].aqi < aqiThreshold) {
+      endIdx = bestOvernightIdx + 1;
+    }
+    const startEntry = forecast[bestOvernightIdx];
+    const endEntry = forecast[endIdx];
+    return {
+      startHour: startEntry.hour,
+      endHour: (endEntry.hour + 1) % 24,
+      aqi: startEntry.aqi,
+      benefit: startEntry.co2ReductionEstimate,
+      isOvernight: true,
+    };
+  }
+
+  return null;
 }
 
 // CO₂ status label

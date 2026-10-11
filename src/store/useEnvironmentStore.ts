@@ -362,3 +362,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
     },
   };
 });
+
+if (typeof window !== 'undefined') {
+  (window as any).__store = useEnvironmentStore;
+}
