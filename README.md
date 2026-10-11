@@ -1,4 +1,4 @@
-# 🪟 Window-Open Advisor
+# 🪟 Window Advisor
 
 > **An intelligent, physically grounded ventilation advisor for real-world rooms.**  
 > Combines indoor CO₂ differential mass-balance modeling, outdoor air quality forecasting (Open-Meteo), and real-time IoT telemetry from an ESP32 to tell you exactly **when** and **why** to open your window.
