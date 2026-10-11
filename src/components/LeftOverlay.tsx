@@ -3,6 +3,8 @@ import { useSceneInputs } from './scene/useSceneInputs';
 import * as SunCalc from 'suncalc';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { useState, useEffect } from 'react';
+import { updateCO2 } from '@/lib/co2Model';
+import ProjectionRibbon from './ProjectionRibbon';
 
 function ReasonSentence({ state, setFocus, textColor }: { state: AdvisorState, setFocus: (v: string | null) => void, textColor: string }) {
   const indoor = (
@@ -100,6 +102,145 @@ function AnimatedVerdict({ verdictId, reducedMotion, accentColor, textColor }: {
   );
 }
 
+function WhatIfControl({ state, textColor }: { state: AdvisorState; textColor: string }) {
+  const currentPreview = state.previewOpen;
+  const realWindowOpen = state.windowState === 'open';
+  const isClosedActive = currentPreview === false;
+  const isOpenActive = currentPreview === true;
+  const isPreviewDiff = currentPreview !== null && currentPreview !== realWindowOpen;
+
+  const { co2Estimated, outdoorAQI, modelParams } = state;
+  const targetCO2 = modelParams.co2Threshold;
+  const [achLow, achHigh] = modelParams.achOpenRange || [2, 6];
+  const occupants = modelParams.occupants;
+
+  let resultLine: string | null = null;
+
+  if (currentPreview === true) {
+    const timeToLimit = (ach: number): number | null => {
+      if (co2Estimated <= targetCO2) return 0;
+      let c = co2Estimated;
+      let t = 0;
+      const dt = 10;
+      const maxT = 180 * 60;
+      while (t < maxT) {
+        c = updateCO2(c, occupants, modelParams.roomVolume, ach, dt);
+        t += dt;
+        if (c <= targetCO2) return Math.round(t / 60);
+      }
+      return null;
+    };
+
+    const tFast = timeToLimit(achHigh);
+    const tSlow = timeToLimit(achLow);
+
+    let timeText = 'n/a';
+    if (tFast !== null && tSlow !== null) {
+      if (tFast === 0 && tSlow === 0) {
+        timeText = '0 min (already below limit)';
+      } else {
+        timeText = `~${tFast}-${tSlow} min`;
+      }
+    }
+
+    resultLine = `est. CO₂ could fall below ${targetCO2} ppm in ${timeText} (assumed ACH ${achLow}-${achHigh})`;
+    if (outdoorAQI > modelParams.aqiThreshold) {
+      resultLine += `, but outdoor AQI is ${Math.round(outdoorAQI)} (modelled), above your limit of ${modelParams.aqiThreshold}`;
+    }
+  } else if (currentPreview === false) {
+    if (co2Estimated >= targetCO2) {
+      resultLine = `est. CO₂ is currently at ${Math.round(co2Estimated)} ppm, above your ${targetCO2} ppm limit`;
+    } else {
+      let c = co2Estimated;
+      let reachesZ: number | null = null;
+      const dt = 10;
+      const maxT = 60 * 60;
+      let t = 0;
+      while (t < maxT) {
+        c = updateCO2(c, occupants, modelParams.roomVolume, modelParams.achClosed, dt);
+        t += dt;
+        if (c >= targetCO2) {
+          reachesZ = Math.round(t / 60);
+          break;
+        }
+      }
+      if (reachesZ !== null) {
+        resultLine = `est. CO₂ reaches ${targetCO2} ppm in ~${reachesZ} min`;
+      } else {
+        resultLine = `stays below the limit for the next 60 min`;
+      }
+    }
+  }
+
+  return (
+    <div className="mt-4 lg:mt-6 font-mono text-xs">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <span className="text-[11px] uppercase tracking-wider opacity-75 font-semibold mr-1" style={{ color: textColor }}>
+          WHAT IF I...
+        </span>
+
+        <button
+          type="button"
+          onClick={() => state.setPreviewOpen(false)}
+          aria-pressed={isClosedActive}
+          className={`min-h-[44px] px-3.5 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
+            isClosedActive
+              ? 'font-bold border-b-2 border-b-[#111111] bg-black/5'
+              : 'opacity-80'
+          }`}
+          style={{ color: textColor }}
+        >
+          KEEP CLOSED
+        </button>
+
+        <button
+          type="button"
+          onClick={() => state.setPreviewOpen(true)}
+          aria-pressed={isOpenActive}
+          className={`min-h-[44px] px-3.5 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
+            isOpenActive
+              ? 'font-bold border-b-2 border-b-[#111111] bg-black/5'
+              : 'opacity-80'
+          }`}
+          style={{ color: textColor }}
+        >
+          OPEN NOW
+        </button>
+
+        {isPreviewDiff && (
+          <div className="flex items-center gap-2 ml-1">
+            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-[#111111] text-[#f4f0ea]">
+              PREVIEW
+            </span>
+            <button
+              type="button"
+              onClick={() => state.setPreviewOpen(null)}
+              className="text-[11px] underline opacity-75 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-black transition-opacity"
+              style={{ color: textColor }}
+            >
+              back to real state
+            </button>
+          </div>
+        )}
+      </div>
+
+      {resultLine && (
+        <div 
+          className="text-[12px] md:text-[11px] py-1.5 px-2.5 border-l-2 border-[#111111] mt-2.5 max-w-xl"
+          style={{ backgroundColor: 'rgba(244,240,234,0.85)', color: '#111111' }}
+        >
+          {resultLine}
+        </div>
+      )}
+
+      {/* On mobile: ribbon moves below the buttons */}
+      <div className="block md:hidden mt-3 max-w-xs">
+        <ProjectionRibbon state={state} />
+      </div>
+    </div>
+  );
+}
+
 export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, setFocus: (v: string | null) => void }) {
   const { sceneTime, reducedMotion, isMobile } = useSceneInputs();
   const [isMounted, setIsMounted] = useState(false);
@@ -151,6 +292,9 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
             <ReasonSentence state={state} setFocus={setFocus} textColor={textColor} />
           )}
         </div>
+
+        {/* What if I... control */}
+        <WhatIfControl state={state} textColor={textColor} />
 
         <p suppressHydrationWarning className="mt-6 lg:mt-12 font-mono text-[10px] lg:text-xs opacity-60" style={{ color: textColor }}>
           Estimates only: CO₂ is modelled, forecast is modelled. • {state.systemStatus.status} (last reading {state.systemStatus.ageText})

@@ -31,6 +31,9 @@ export interface AdvisorState {
   setScrubHour: (h: number | null) => void;
   predictedVerdict?: Verdict;
   predictedCO2?: number;
+  previewOpen: boolean | null;
+  setPreviewOpen: (open: boolean | null) => void;
+  togglePreviewOpen: () => void;
 }
 
 export function useAdvisorState(): AdvisorState {
@@ -156,6 +159,9 @@ export function useAdvisorState(): AdvisorState {
     scrubHour: store.scrubHour,
     setScrubHour: store.setScrubHour,
     predictedVerdict,
-    predictedCO2
+    predictedCO2,
+    previewOpen: store.previewOpen,
+    setPreviewOpen: store.setPreviewOpen,
+    togglePreviewOpen: store.togglePreviewOpen
   };
 }

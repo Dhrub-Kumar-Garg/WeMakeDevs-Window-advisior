@@ -52,12 +52,19 @@ export function useSceneInputs() {
     return () => mql.removeEventListener('change', handler);
   }, []);
 
+  const realWindowOpen = store.windowState === 'open' || store.sensorData.windowOpen;
+  const isWindowOpen = store.previewOpen !== null ? store.previewOpen : realWindowOpen;
+  const openness = store.previewOpen !== null 
+    ? (store.previewOpen ? 1 : 0) 
+    : (store.windowState === 'open' ? 1 : (store.sashAngle > 0 ? store.sashAngle / 60 : 0));
+
   return {
     co2Ratio,
     outdoorAQI: store.sensorData.outdoorAQI,
     effectiveACH,
-    openness: store.sashAngle / 60,
-    windowOpen: store.windowState === 'open',
+    openness,
+    windowOpen: isWindowOpen,
+    previewOpen: store.previewOpen,
     sceneTime: store.scrubHour !== null ? new Date(new Date(store.sensorData.timestamp).setHours(store.scrubHour, 0, 0, 0)) : (sceneTimeOverride || new Date(store.sensorData.timestamp)),
     state: store.recommendation === 'OPEN_WINDOW' ? 'open' : store.recommendation === 'WAIT' ? 'wait' : 'closed',
     reducedMotion,

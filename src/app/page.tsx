@@ -15,6 +15,7 @@ import LeftOverlay from '@/components/LeftOverlay';
 import BottomScrubStrip from '@/components/BottomScrubStrip';
 
 import EvidenceStrip from '@/components/EvidenceStrip';
+import ProjectionRibbon from '@/components/ProjectionRibbon';
 
 function DashboardContent() {
   const state = useAdvisorState();
@@ -38,6 +39,11 @@ function DashboardContent() {
         <section id="now" className="relative w-full min-h-[40svh] md:h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none bg-[#f8f9fc] md:bg-transparent border-b border-[#e2e8f0] md:border-none pb-24 md:pb-0">
           <LeftOverlay state={state} setFocus={setFocus} />
           <EvidenceStrip state={state} />
+          
+          {/* Desktop Projection Ribbon */}
+          <div className="hidden md:block fixed bottom-[180px] right-6 z-40 w-[clamp(260px,24vw,360px)] pr-6 pointer-events-none">
+            <ProjectionRibbon state={state} />
+          </div>
         </section>
 
         {/* Other sections with solid backgrounds to scroll over the 3D scene */}

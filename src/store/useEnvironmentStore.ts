@@ -33,6 +33,7 @@ interface EnvironmentStore {
   showModelExplainer: boolean;
   showWindowDetail: boolean;
   scrubHour: number | null;
+  previewOpen: boolean | null;
 
   // Device health
   esp32Connected: boolean;
@@ -44,6 +45,8 @@ interface EnvironmentStore {
   toggleWindow: () => void;
   setWindowState: (state: WindowState) => void;
   setSashAngle: (angle: number) => void;
+  setPreviewOpen: (open: boolean | null) => void;
+  togglePreviewOpen: () => void;
   toggleSimulation: () => void;
   setShowModelExplainer: (v: boolean) => void;
   setShowWindowDetail: (v: boolean) => void;
@@ -69,6 +72,8 @@ function deriveEnvState(
   if (pirPresence) return 'OCCUPIED';
   return 'NORMAL';
 }
+
+let previewResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
   const initialForecast = generateHourlyForecast();
@@ -113,6 +118,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
     showModelExplainer: false,
     showWindowDetail: false,
     scrubHour: null,
+    previewOpen: null,
 
     esp32Connected: true,
     awsConnected: true,
@@ -210,6 +216,27 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       } else {
         set(updates);
       }
+    },
+
+    setPreviewOpen: (open: boolean | null) => {
+      if (previewResetTimer) {
+        clearTimeout(previewResetTimer);
+        previewResetTimer = null;
+      }
+      set({ previewOpen: open });
+      if (open !== null) {
+        previewResetTimer = setTimeout(() => {
+          set({ previewOpen: null });
+          previewResetTimer = null;
+        }, 20000);
+      }
+    },
+
+    togglePreviewOpen: () => {
+      const current = get().previewOpen;
+      const realOpen = get().windowState === 'open' || get().sensorData.windowOpen;
+      const next = current === null ? !realOpen : !current;
+      get().setPreviewOpen(next);
     },
 
     toggleSimulation: () => {
