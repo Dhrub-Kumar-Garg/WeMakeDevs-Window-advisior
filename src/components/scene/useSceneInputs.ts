@@ -49,7 +49,7 @@ export function useSceneInputs() {
     effectiveACH,
     openness: store.sashAngle / 60,
     windowOpen: store.windowState === 'open',
-    sceneTime: sceneTimeOverride || new Date(store.sensorData.timestamp),
+    sceneTime: store.scrubHour !== null ? new Date(new Date(store.sensorData.timestamp).setHours(store.scrubHour, 0, 0, 0)) : (sceneTimeOverride || new Date(store.sensorData.timestamp)),
     state: store.recommendation === 'OPEN_WINDOW' ? 'open' : store.recommendation === 'WAIT' ? 'wait' : 'closed',
     reducedMotion
   };

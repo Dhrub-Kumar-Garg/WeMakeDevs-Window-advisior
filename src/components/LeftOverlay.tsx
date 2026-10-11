@@ -85,9 +85,14 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
   const textColor = isNight ? '#f8fafc' : '#111111';
   const scrimFade = isNight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
 
-  const accentColor = state.verdict === 'WAIT' ? '#eab308' : 
-                      state.verdict === 'OPEN_WINDOW' ? '#00d8a5' : 
+  const activeVerdict = state.scrubHour !== null && state.predictedVerdict ? state.predictedVerdict : state.verdict;
+  const accentColor = activeVerdict === 'WAIT' ? '#eab308' : 
+                      activeVerdict === 'OPEN_WINDOW' ? '#00d8a5' : 
                       '#ff5f1f';
+
+  const headingText = state.scrubHour !== null 
+    ? `At ${String(state.scrubHour).padStart(2, '0')}:00 \u2192 (PREDICTED)`
+    : 'Should I open the window?';
 
   return (
     <div className="relative w-full max-w-[46vw] h-full flex flex-col justify-center pointer-events-auto">
@@ -101,18 +106,22 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
       
       <div className="pl-8 lg:pl-16">
         <h2 className="font-serif italic text-2xl lg:text-3xl mb-4" style={{ color: textColor }}>
-          Should I open the window?
+          {headingText}
         </h2>
 
         <AnimatedVerdict 
-          text={state.verdict} 
+          text={activeVerdict} 
           reducedMotion={reducedMotion} 
           accentColor={accentColor} 
           textColor={textColor}
         />
 
         <div className="mt-8 font-serif italic text-2xl md:text-3xl leading-tight max-w-xl" style={{ color: textColor }}>
-          <ReasonSentence state={state} setFocus={setFocus} textColor={textColor} />
+          {state.scrubHour !== null ? (
+            <>Projected CO₂ {state.predictedCO2} ppm; assumes current occupancy, window closed.</>
+          ) : (
+            <ReasonSentence state={state} setFocus={setFocus} textColor={textColor} />
+          )}
         </div>
 
         <p className="mt-12 font-mono text-xs opacity-60" style={{ color: textColor }}>

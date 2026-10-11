@@ -32,6 +32,7 @@ interface EnvironmentStore {
   simulatedCO2Trajectory: Array<{ time: number; co2: number }>;
   showModelExplainer: boolean;
   showWindowDetail: boolean;
+  scrubHour: number | null;
 
   // Device health
   esp32Connected: boolean;
@@ -46,6 +47,7 @@ interface EnvironmentStore {
   toggleSimulation: () => void;
   setShowModelExplainer: (v: boolean) => void;
   setShowWindowDetail: (v: boolean) => void;
+  setScrubHour: (h: number | null) => void;
   tick: (dtSeconds?: number) => void;
   setModelParam: <K extends keyof ModelParams>(key: K, value: ModelParams[K]) => void;
   applyLatestReading: (r: LatestReading) => void;
@@ -110,6 +112,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
     simulatedCO2Trajectory: [],
     showModelExplainer: false,
     showWindowDetail: false,
+    scrubHour: null,
 
     esp32Connected: true,
     awsConnected: true,
@@ -228,6 +231,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
 
     setShowModelExplainer: (v) => set({ showModelExplainer: v }),
     setShowWindowDetail: (v) => set({ showWindowDetail: v }),
+    setScrubHour: (h) => set({ scrubHour: h }),
 
     setModelParam: (key, value) => {
       const state = get();

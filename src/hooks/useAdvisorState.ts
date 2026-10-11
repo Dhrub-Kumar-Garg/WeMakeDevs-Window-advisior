@@ -4,7 +4,7 @@ import { useEnvironmentStore } from '@/store/useEnvironmentStore';
 import type { Verdict } from '@/lib/decision';
 import type { CO2DataPoint, HourlyForecast, EventEntry, ModelParams, WindowState } from '@/lib/types';
 import { fetchLatestReading, fetchOutdoorForecast, getSourceStatus, type SourceStatus } from '@/lib/dataSource';
-import { findBestVentilationWindow } from '@/lib/co2Model';
+import { findBestVentilationWindow, updateCO2, computeRecommendation } from '@/lib/co2Model';
 
 export interface AdvisorState {
   co2Estimated: number;
@@ -25,6 +25,10 @@ export interface AdvisorState {
   setWindowState: (state: WindowState) => void;
   setSashAngle: (angle: number) => void;
   sashAngle: number;
+  scrubHour: number | null;
+  setScrubHour: (h: number | null) => void;
+  predictedVerdict?: Verdict;
+  predictedCO2?: number;
 }
 
 export function useAdvisorState(): AdvisorState {
@@ -42,6 +46,28 @@ export function useAdvisorState(): AdvisorState {
     const bestWindow = findBestVentilationWindow(store.hourlyForecast, store.modelParams.aqiThreshold);
     if (bestWindow) {
       waitUntil = String(bestWindow.startHour).padStart(2, '0') + ':00';
+    }
+  }
+
+  let predictedVerdict: Verdict | undefined;
+  let predictedCO2: number | undefined;
+
+  if (store.scrubHour !== null) {
+    const currentHour = new Date(store.sensorData.timestamp).getHours();
+    let hoursAhead = store.scrubHour - currentHour;
+    if (hoursAhead < 0) hoursAhead += 24;
+    
+    if (hoursAhead > 0) {
+      const activeOccupants = store.sensorData.pirPresence ? store.modelParams.occupants : 0;
+      const ACH = store.modelParams.achClosed; // assuming window closed
+      const dt = hoursAhead * 3600; // seconds
+      predictedCO2 = Math.round(updateCO2(store.sensorData.co2Estimated, activeOccupants, store.modelParams.roomVolume, ACH, dt));
+      
+      const targetForecast = store.hourlyForecast.find(f => f.time === store.scrubHour) || store.hourlyForecast[0];
+      predictedVerdict = computeRecommendation(predictedCO2, targetForecast.aqi, store.modelParams, false) as Verdict;
+    } else {
+      predictedVerdict = store.recommendation as Verdict;
+      predictedCO2 = store.sensorData.co2Estimated;
     }
   }
 
@@ -121,5 +147,9 @@ export function useAdvisorState(): AdvisorState {
     setWindowState: store.setWindowState,
     setSashAngle: store.setSashAngle,
     sashAngle: store.sashAngle,
+    scrubHour: store.scrubHour,
+    setScrubHour: store.setScrubHour,
+    predictedVerdict,
+    predictedCO2
   };
 }
