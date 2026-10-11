@@ -26,6 +26,7 @@
 *.key
 *.crt
 secrets.h
+*.zip
 
 # debug
 npm-debug.log*
