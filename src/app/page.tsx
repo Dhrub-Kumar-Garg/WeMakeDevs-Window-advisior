@@ -11,9 +11,9 @@ import EvidenceTraces from '@/components/EvidenceTraces';
 import PlumbingLine from '@/components/PlumbingLine';
 import ModelSection from '@/components/ModelSection';
 import WindowDetailDrawer from '@/components/WindowDetailDrawer';
-
 import TopRail from '@/components/TopRail';
 import LeftOverlay from '@/components/LeftOverlay';
+import BottomScrubStrip from '@/components/BottomScrubStrip';
 
 function DashboardContent() {
   const state = useAdvisorState();
@@ -23,18 +23,18 @@ function DashboardContent() {
     <div className="relative min-h-screen bg-[#f8f9fc] font-sans text-[#111111] overflow-x-hidden selection:bg-[#ff5f1f] selection:text-[#000]">
       
       {/* 3D Scene Background */}
-      <div className="fixed inset-0 z-0 pointer-events-auto">
+      <div className="relative h-[60svh] w-full md:fixed md:inset-0 md:h-full z-0 pointer-events-auto">
         <SceneRoot />
       </div>
 
       {/* Foreground Content */}
-      <div className="relative z-10 pointer-events-none">
+      <div className="relative z-10 pointer-events-none flex flex-col md:block">
         
         {/* Top Rail */}
         <TopRail state={state} />
 
         {/* Hero Left Overlay */}
-        <section id="now" className="relative w-full h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none">
+        <section id="now" className="relative w-full min-h-[40svh] md:h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none bg-[#f8f9fc] md:bg-transparent border-b border-[#e2e8f0] md:border-none">
           <LeftOverlay state={state} setFocus={setFocus} />
         </section>
 
@@ -64,6 +64,7 @@ function DashboardContent() {
         {/* Overlays */}
         <div className="pointer-events-auto relative z-30">
            <WindowDetailDrawer state={state} />
+           <BottomScrubStrip state={state} />
         </div>
       </div>
     </div>

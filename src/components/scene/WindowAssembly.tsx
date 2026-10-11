@@ -7,7 +7,7 @@ import PreviewRibbon from './PreviewRibbon';
 import { Html } from '@react-three/drei';
 
 export default function WindowAssembly() {
-  const { openness } = useSceneInputs();
+  const { openness, reducedMotion } = useSceneInputs();
   const sashRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
   
@@ -28,7 +28,11 @@ export default function WindowAssembly() {
     if (sashRef.current) {
       // activeOpenness is 0-1, swing 0-70 degrees (0 to 1.22 radians)
       const targetAngle = -activeOpenness * (70 * Math.PI / 180);
-      easing.dampE(sashRef.current.rotation, [0, targetAngle, 0], 0.25, delta);
+      if (reducedMotion) {
+        sashRef.current.rotation.y = targetAngle;
+      } else {
+        easing.dampE(sashRef.current.rotation, [0, targetAngle, 0], 0.25, delta);
+      }
     }
   });
 

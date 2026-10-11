@@ -43,6 +43,15 @@ export function useSceneInputs() {
     }
   }, []);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   return {
     co2Ratio,
     outdoorAQI: store.sensorData.outdoorAQI,
@@ -51,6 +60,7 @@ export function useSceneInputs() {
     windowOpen: store.windowState === 'open',
     sceneTime: store.scrubHour !== null ? new Date(new Date(store.sensorData.timestamp).setHours(store.scrubHour, 0, 0, 0)) : (sceneTimeOverride || new Date(store.sensorData.timestamp)),
     state: store.recommendation === 'OPEN_WINDOW' ? 'open' : store.recommendation === 'WAIT' ? 'wait' : 'closed',
-    reducedMotion
+    reducedMotion,
+    isMobile
   };
 }

@@ -1,7 +1,8 @@
 import { EffectComposer, N8AO, Vignette, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 
-export default function Effects() {
+export default function Effects({ enabled = true }: { enabled?: boolean }) {
+  if (!enabled) return null;
   return (
     <EffectComposer>
       <N8AO aoRadius={0.5} intensity={1} />

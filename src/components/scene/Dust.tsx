@@ -50,10 +50,10 @@ const fragmentShader = `
 `;
 
 export default function Dust() {
-  const { effectiveACH, windowOpen } = useSceneInputs();
+  const { effectiveACH, windowOpen, reducedMotion, isMobile } = useSceneInputs();
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   
-  const count = 1000;
+  const count = isMobile ? 300 : 1000;
   
   const [positions, offsets, sizes] = useMemo(() => {
     const pos = new Float32Array(count * 3);
@@ -74,7 +74,8 @@ export default function Dust() {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
       // When closed, slight brownian drift. When open, proportional to effectiveACH
-      const targetSpeed = windowOpen ? Math.max(0.2, effectiveACH * 0.1) : 0.02;
+      // If reduced motion, set target speed to 0 (static)
+      const targetSpeed = reducedMotion ? 0 : (windowOpen ? Math.max(0.2, effectiveACH * 0.1) : 0.02);
       
       // smoothly interpolate speed
       const currentSpeed = materialRef.current.uniforms.uSpeed.value;

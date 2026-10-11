@@ -42,11 +42,18 @@ function ReasonSentence({ state, setFocus, textColor }: { state: AdvisorState, s
 function AnimatedVerdict({ text, reducedMotion, accentColor, textColor }: { text: string, reducedMotion: boolean, accentColor: string, textColor: string }) {
   const letters = text.replace('_', ' ').split('');
   return (
-    <div className="relative font-serif leading-[0.8] tracking-tight uppercase py-2" aria-live="polite" style={{ fontSize: 'clamp(72px, 12vw, 200px)', color: textColor }}>
-      {/* Accent bar */}
-      <div className="absolute -left-6 lg:-left-12 top-[15%] bottom-[15%] w-2 rounded-full" style={{ backgroundColor: accentColor }} />
-      {/* Accent dot */}
-      <div className="absolute -left-10 lg:-left-16 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full" style={{ backgroundColor: accentColor }} />
+    <div className="relative font-serif leading-[0.8] tracking-tight uppercase py-2 flex items-center" aria-live="polite" style={{ fontSize: 'clamp(56px, 10vw, 200px)', color: textColor }}>
+      {/* Accent marker (not color-only for state) */}
+      <div 
+        className="absolute -left-6 lg:-left-12 flex items-center justify-center w-2 h-full" 
+        style={{ color: accentColor }}
+        aria-hidden="true"
+      >
+        <div className="w-2 h-3/4 rounded-full" style={{ backgroundColor: accentColor }} />
+        <span className="absolute top-1/2 -left-4 -translate-y-1/2 text-sm font-sans font-bold">
+          {text === 'WAIT' ? '!' : text === 'OPEN WINDOW' ? '✓' : '•'}
+        </span>
+      </div>
 
       <div className="flex flex-wrap" key={text}>
         {letters.map((char, i) => (
@@ -54,7 +61,7 @@ function AnimatedVerdict({ text, reducedMotion, accentColor, textColor }: { text
             key={`${char}-${i}`}
             initial={reducedMotion ? false : { y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ type: 'spring', damping: 12, stiffness: 100, delay: i * 0.03 }}
+            transition={reducedMotion ? { duration: 0 } : { type: 'spring', damping: 12, stiffness: 100, delay: i * 0.03 }}
             className={char === ' ' ? 'w-[0.3em]' : ''}
           >
             {char}
@@ -66,7 +73,7 @@ function AnimatedVerdict({ text, reducedMotion, accentColor, textColor }: { text
 }
 
 export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, setFocus: (v: string | null) => void }) {
-  const { sceneTime, reducedMotion } = useSceneInputs();
+  const { sceneTime, reducedMotion, isMobile } = useSceneInputs();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -79,11 +86,10 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
   const sunPos = SunCalc.getPosition(sceneTime, lat, lon);
   const altitude = sunPos.altitude;
   
-  // Default to false (day) during SSR to avoid mismatch
   const isNight = isMounted ? (altitude < -0.05) : false;
 
-  const textColor = isNight ? '#f8fafc' : '#111111';
-  const scrimFade = isNight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
+  const textColor = (isNight && !isMobile) ? '#f8fafc' : '#111111';
+  const scrimFade = (isNight && !isMobile) ? 'rgba(0,0,0,0.6)' : (isMobile ? 'transparent' : 'rgba(255,255,255,0.7)');
 
   const activeVerdict = state.scrubHour !== null && state.predictedVerdict ? state.predictedVerdict : state.verdict;
   const accentColor = activeVerdict === 'WAIT' ? '#eab308' : 
@@ -95,17 +101,19 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
     : 'Should I open the window?';
 
   return (
-    <div className="relative w-full max-w-[46vw] h-full flex flex-col justify-center pointer-events-auto">
-      {/* Soft radial scrim for readability */}
-      <div 
-        className="absolute inset-0 -inset-x-[20vw] -inset-y-[20vh] pointer-events-none -z-10"
-        style={{
-          background: `radial-gradient(ellipse at 30% 50%, ${scrimFade} 0%, transparent 60%)`
-        }}
-      />
+    <div className={`relative w-full ${isMobile ? 'max-w-full py-8' : 'max-w-[46vw] h-full'} flex flex-col justify-center pointer-events-auto`}>
+      {/* Soft radial scrim for readability on desktop */}
+      {!isMobile && (
+        <div 
+          className="absolute inset-0 -inset-x-[20vw] -inset-y-[20vh] pointer-events-none -z-10"
+          style={{
+            background: `radial-gradient(ellipse at 30% 50%, ${scrimFade} 0%, transparent 60%)`
+          }}
+        />
+      )}
       
       <div className="pl-8 lg:pl-16">
-        <h2 className="font-serif italic text-2xl lg:text-3xl mb-4" style={{ color: textColor }}>
+        <h2 className="font-serif italic text-xl lg:text-3xl mb-2 lg:mb-4" style={{ color: textColor }}>
           {headingText}
         </h2>
 
@@ -116,7 +124,7 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
           textColor={textColor}
         />
 
-        <div className="mt-8 font-serif italic text-2xl md:text-3xl leading-tight max-w-xl" style={{ color: textColor }}>
+        <div className="mt-4 lg:mt-8 font-serif italic text-xl md:text-3xl leading-tight max-w-xl" style={{ color: textColor }}>
           {state.scrubHour !== null ? (
             <>Projected CO₂ {state.predictedCO2} ppm; assumes current occupancy, window closed.</>
           ) : (
@@ -124,7 +132,7 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
           )}
         </div>
 
-        <p className="mt-12 font-mono text-xs opacity-60" style={{ color: textColor }}>
+        <p className="mt-6 lg:mt-12 font-mono text-[10px] lg:text-xs opacity-60" style={{ color: textColor }}>
           Estimates only: CO₂ is modelled, forecast is modelled.
         </p>
       </div>
