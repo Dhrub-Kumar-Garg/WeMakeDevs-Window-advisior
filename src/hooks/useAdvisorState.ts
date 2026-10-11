@@ -31,7 +31,7 @@ export interface AdvisorState {
   distanceCm?: number;
   people: number;
   volumeM3: number;
-  led?: string | number;
+  led?: 'green' | 'red' | 'off';
   deviceId?: string;
   pirPresence: boolean;
   setOccupants: (n: number) => void;
@@ -103,18 +103,22 @@ export function useAdvisorState(): AdvisorState {
     if (!isDemo) {
       const fetchLiveData = async () => {
         try {
-          const reading = await fetchLatestReading();
-          if (reading) {
-            store.applyLatestReading(reading);
+          const res = await fetchLatestReading();
+          if (res.success) {
+            useEnvironmentStore.getState().applyLatestReading(res.reading);
+          } else {
+            useEnvironmentStore.getState().handleFetchFailure(res.reason);
           }
-        } catch (_) {}
+        } catch (_) {
+          useEnvironmentStore.getState().handleFetchFailure('ERROR');
+        }
       };
       
       const fetchForecast = async () => {
         try {
           const forecast = await fetchOutdoorForecast();
           if (forecast && forecast.length > 0) {
-            store.applyForecast(forecast);
+            useEnvironmentStore.getState().applyForecast(forecast);
           }
         } catch (_) {}
       };
@@ -122,18 +126,12 @@ export function useAdvisorState(): AdvisorState {
       fetchLiveData();
       fetchForecast();
 
-      const pollSensors = setInterval(fetchLiveData, 30000); // 30s
+      const pollSensors = setInterval(fetchLiveData, 10000); // 10s
       const pollForecast = setInterval(fetchForecast, 1000 * 60 * 60); // 1h
-      
-      // And the physics simulation tick
-      const tickInterval = setInterval(() => {
-        store.tick();
-      }, 5000);
 
       return () => {
         clearInterval(pollSensors);
         clearInterval(pollForecast);
-        clearInterval(tickInterval);
       };
     } else {
       // Demo Mode
@@ -141,18 +139,18 @@ export function useAdvisorState(): AdvisorState {
       // 10 ticks per real second. If we want 60x time compression,
       // 1 real second = 60 physics seconds. So each tick = 6 physics seconds.
       const tickInterval = setInterval(() => {
-        store.tick(6);
+        useEnvironmentStore.getState().tick(6);
       }, tickRate);
 
       // Scripted events
-      const t1 = setTimeout(() => store.setOccupants(3), 2000);
+      const t1 = setTimeout(() => useEnvironmentStore.getState().setOccupants(3), 2000);
       
       return () => {
         clearInterval(tickInterval);
         clearTimeout(t1);
       };
     }
-  }, [isDemo, store]);
+  }, [isDemo]);
 
   return {
     co2Estimated: store.sensorData.co2Estimated,

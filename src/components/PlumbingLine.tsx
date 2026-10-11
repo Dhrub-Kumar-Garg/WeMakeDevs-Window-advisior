@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useEnvironmentStore } from '@/store/useEnvironmentStore';
 
 export default function PlumbingLine() {
   const [photoExists, setPhotoExists] = useState(false);
+  const latestReading = useEnvironmentStore((s) => s.latestReading);
 
   useEffect(() => {
     const img = new Image();
@@ -13,16 +15,41 @@ export default function PlumbingLine() {
   }, []);
 
   const hardware = [
-    { name: "ESP32", role: "Main microcontroller handling sensors and WiFi/MQTT telemetry.", status: "LIVE" },
-    { name: "DHT11", role: "Measures indoor temperature (about ±2 °C) and humidity (±5%).", status: "LIVE" },
-    { name: "MQ135 (via voltage divider)", role: "Analog VOC/gas reading for relative trend (not ppm).", status: "LIVE" },
-    { name: "PIR HC-SR501", role: "Detects human presence (assumed occupants, never headcount).", status: "LIVE" },
-    { name: "HC-SR04 ultrasonic", role: "Measures distance (HC-SR04).", status: "LIVE" },
-    { name: "Push Button", role: "Physical toggle for window state.", status: "LIVE" },
-    { name: "LEDs", role: "Physical state indicators (Green, Amber, Red).", status: "LIVE" },
-    { name: "AWS IoT Core / Cloud API", role: "Ingests sensor payload and serves latest readings.", status: "LIVE" },
-    { name: "Open-Meteo API", role: "Provides hourly outdoor AQI, PM2.5, and wind speed forecasts.", status: "LIVE" },
-    { name: "Next.js Frontend", role: "Runs physics mass-balance model and renders real-time advice.", status: "LIVE" }
+    {
+      name: "ESP32",
+      role: "Main microcontroller handling sensors and WiFi/MQTT telemetry.",
+      status: latestReading && (latestReading.deviceId || latestReading.ts) ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "DHT11",
+      role: "Measures indoor temperature (about ±2 °C) and humidity (±5%).",
+      status: latestReading && (latestReading.tempC !== undefined || latestReading.humidity !== undefined) ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "MQ135 (via voltage divider)",
+      role: "Analog VOC/gas reading for relative trend (not ppm).",
+      status: latestReading && (latestReading.mq135Mv !== undefined || latestReading.mq135Idx !== undefined) ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "PIR HC-SR501",
+      role: "Detects human presence (assumed occupants, never headcount).",
+      status: latestReading && latestReading.pir !== undefined ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "HC-SR04 ultrasonic",
+      role: "Measures distance (HC-SR04).",
+      status: latestReading && latestReading.distanceCm !== undefined ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "Push Button",
+      role: "Physical toggle for window state.",
+      status: latestReading && latestReading.windowOpen !== undefined ? "LIVE" : "NO DATA",
+    },
+    {
+      name: "LEDs",
+      role: "Physical state indicators (green, red, off).",
+      status: latestReading && latestReading.led !== undefined ? "LIVE" : "NO DATA",
+    },
   ];
 
   return (

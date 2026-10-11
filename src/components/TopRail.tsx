@@ -17,13 +17,12 @@ export default function TopRail({ state }: { state: AdvisorState }) {
   const badgeStyle = 
     status === 'LIVE' ? 'bg-[#00d4aa] text-[#111111] font-bold' : 
     status === 'STALE' ? 'bg-[#eab308] text-[#111111] font-bold' : 
-    'border border-[#111111] text-[#111111] bg-transparent font-bold';
+    status === 'DEMO' ? 'border border-[#111111] text-[#111111] bg-transparent font-bold' :
+    'border border-[#111111]/40 text-[#111111]/70 bg-transparent font-bold';
 
-  const rawLed = state.led !== undefined && state.led !== null ? String(state.led).toUpperCase() : null;
-  const hasLed = rawLed !== null;
-  const isGreen = hasLed ? (rawLed === 'GREEN' || rawLed === '1' || rawLed === 'OPEN') : state.verdict === 'OPEN_WINDOW';
-  const isAmber = hasLed ? (rawLed === 'AMBER' || rawLed === 'YELLOW' || rawLed === '2' || rawLed === 'WAIT') : state.verdict === 'WAIT';
-  const isRed = hasLed ? (rawLed === 'RED' || rawLed === '3' || rawLed === '0' || rawLed === 'CLOSED') : state.verdict === 'KEEP_CLOSED';
+  const isGreen = state.led === 'green';
+  const isRed = state.led === 'red';
+  const isAmber = false;
 
   return (
     <header 

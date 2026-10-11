@@ -1,10 +1,16 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { AdvisorState } from '@/hooks/useAdvisorState';
 import { tokens } from '@/design/tokens';
 import { findBestVentilationWindow } from '@/lib/co2Model';
 
 export default function ForecastSkyline({ state }: { state: AdvisorState }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { forecast } = state;
   if (!forecast || forecast.length === 0) {
     return (
@@ -46,8 +52,9 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
   pathD += ` L ${getX(forecast.length - 1)} ${height - paddingY} Z`;
 
   // Determine current hour (for "now" marker)
-  const currentHour = new Date().getHours();
-  const nowIndex = forecast.findIndex(f => f.hour === currentHour) || 0;
+  const currentHour = mounted ? new Date().getHours() : (forecast[0]?.hour ?? 0);
+  const foundIndex = forecast.findIndex(f => f.hour === currentHour);
+  const nowIndex = foundIndex >= 0 ? foundIndex : 0;
   const nowX = getX(nowIndex);
 
   return (
@@ -87,8 +94,12 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
             ))}
 
             {/* "Now" Marker */}
-            <line x1={nowX} y1={paddingY} x2={nowX} y2={height - paddingY} stroke={tokens.colors.ink} strokeWidth="1" strokeDasharray="2 2" />
-            <text x={nowX} y={paddingY - 10} textAnchor="middle" fill={tokens.colors.ink} fontWeight="bold">NOW</text>
+            {mounted && (
+              <g>
+                <line x1={nowX} y1={paddingY} x2={nowX} y2={height - paddingY} stroke={tokens.colors.ink} strokeWidth="1" strokeDasharray="2 2" />
+                <text x={nowX} y={paddingY - 10} textAnchor="middle" fill={tokens.colors.ink} fontWeight="bold">NOW</text>
+              </g>
+            )}
 
             {/* Best Window Clearing */}
             {bestWindow && (

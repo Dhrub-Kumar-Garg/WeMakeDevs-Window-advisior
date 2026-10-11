@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useEnvironmentStore } from '@/store/useEnvironmentStore';
 import { useSearchParams } from 'next/navigation';
 
-export type SystemStatusType = 'LIVE' | 'STALE' | 'DEMO';
+export type SystemStatusType = 'LIVE' | 'STALE' | 'DEMO' | 'NO DEVICE CONFIGURED' | 'NO DEVICE DATA YET';
 
 export interface SystemStatus {
   status: SystemStatusType;
@@ -10,40 +10,77 @@ export interface SystemStatus {
   ageText: string;
 }
 
-export function computeSystemStatus(lastUpdated: number, isDemo: boolean): SystemStatus {
+export function computeSystemStatus(
+  lastUpdated: number,
+  isDemo: boolean,
+  lastFetchStatus: 'IDLE' | 'SUCCESS' | 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR',
+  hasApiConfig: boolean
+): SystemStatus {
+  if (isDemo) {
+    const ageSeconds = lastUpdated > 0 ? Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000)) : 0;
+    return {
+      status: 'DEMO',
+      ageSeconds,
+      ageText: `${ageSeconds}s ago`,
+    };
+  }
+
+  if (!hasApiConfig || lastFetchStatus === 'NO_CONFIG') {
+    return {
+      status: 'NO DEVICE CONFIGURED',
+      ageSeconds: 0,
+      ageText: '—',
+    };
+  }
+
+  if (lastFetchStatus === 'NOT_FOUND' && lastUpdated <= 0) {
+    return {
+      status: 'NO DEVICE DATA YET',
+      ageSeconds: 0,
+      ageText: '—',
+    };
+  }
+
+  if (lastUpdated <= 0) {
+    return {
+      status: 'NO DEVICE DATA YET',
+      ageSeconds: 0,
+      ageText: '—',
+    };
+  }
+
   const ageSeconds = Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000));
-  
-  let status: SystemStatusType = 'LIVE';
-  if (isDemo) {
-    status = 'DEMO';
-  } else if (ageSeconds >= 120) {
-    status = 'STALE';
-  } else {
-    status = 'LIVE';
+
+  // On failure keep the last value and show STALE
+  if (lastFetchStatus === 'ERROR') {
+    const ageText = ageSeconds < 60
+      ? `${ageSeconds}s ago`
+      : (ageSeconds < 3600 ? `${Math.floor(ageSeconds / 60)}m ago` : `${Math.floor(ageSeconds / 3600)}h ago`);
+    return {
+      status: 'STALE',
+      ageSeconds,
+      ageText,
+    };
   }
 
-  let ageText = '';
-  if (isDemo) {
-    ageText = `${ageSeconds}s ago`;
-  } else if (status === 'STALE') {
-    // "last reading just now" can NEVER appear with STALE.
-    if (ageSeconds < 3600) {
-      ageText = `${Math.floor(ageSeconds / 60)}m ago`;
-    } else {
-      ageText = `${Math.floor(ageSeconds / 3600)}h ago`;
-    }
-  } else {
-    // LIVE
-    if (ageSeconds === 0) {
-      ageText = 'just now';
-    } else if (ageSeconds < 60) {
-      ageText = `${ageSeconds}s ago`;
-    } else {
-      ageText = `${Math.floor(ageSeconds / 60)}m ago`;
-    }
+  // LIVE if age <= 60 s, STALE otherwise
+  if (ageSeconds <= 60) {
+    return {
+      status: 'LIVE',
+      ageSeconds,
+      ageText: ageSeconds === 0 ? 'just now' : `${ageSeconds}s ago`,
+    };
   }
 
-  return { status, ageSeconds, ageText };
+  const ageText = ageSeconds < 3600
+    ? `${Math.floor(ageSeconds / 60)}m ago`
+    : `${Math.floor(ageSeconds / 3600)}h ago`;
+
+  return {
+    status: 'STALE',
+    ageSeconds,
+    ageText,
+  };
 }
 
 /**
@@ -52,28 +89,19 @@ export function computeSystemStatus(lastUpdated: number, isDemo: boolean): Syste
  */
 export function useSystemStatus(): SystemStatus {
   const lastUpdated = useEnvironmentStore((s) => s.lastUpdated);
+  const lastFetchStatus = useEnvironmentStore((s) => s.lastFetchStatus);
   const searchParams = useSearchParams();
-  const isDemo = searchParams.get('demo') === '1' || searchParams.get('demo') === 'true';
+  const isDemo = searchParams.get('demo') === '1';
+  const hasApiConfig = Boolean(process.env.NEXT_PUBLIC_API_URL);
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [state, setState] = useState<SystemStatus>(() => computeSystemStatus(lastUpdated, isDemo));
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    setIsMounted(true);
-    setState(computeSystemStatus(lastUpdated, isDemo));
     const interval = setInterval(() => {
-      setState(computeSystemStatus(lastUpdated, isDemo));
+      setTick((t) => t + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [lastUpdated, isDemo]);
+  }, []);
 
-  if (!isMounted) {
-    return {
-      status: isDemo ? 'DEMO' : 'LIVE',
-      ageSeconds: 0,
-      ageText: isDemo ? '0s ago' : 'just now',
-    };
-  }
-
-  return state;
+  return computeSystemStatus(lastUpdated, isDemo, lastFetchStatus, hasApiConfig);
 }

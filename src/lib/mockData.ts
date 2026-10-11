@@ -112,7 +112,7 @@ export const INITIAL_SENSOR_DATA: SensorData = {
   volumeM3: 36,
   ach: 0.4,
   aqiSrc: 'Open-Meteo',
-  led: 'AMBER',
+  led: 'off',
   timeScale: 1,
   deviceId: 'esp32-advisor-01',
 };

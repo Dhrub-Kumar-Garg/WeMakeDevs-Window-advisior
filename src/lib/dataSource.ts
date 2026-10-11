@@ -1,57 +1,63 @@
-import { SensorData, HourlyForecast, ModelParams } from './types';
+import { SensorData, HourlyForecast, ModelParams, LatestReading } from './types';
 import { aqiToVentilationQuality, co2ReductionEstimate } from './co2Model';
 
-export interface LatestReading {
-  deviceId: string;
-  ts: number; // epoch seconds
-  tempC?: number;
-  humidity?: number;
-  pir: boolean | number; // presence
-  windowOpen: boolean;
-  mq135Mv: number; // raw mV, never ppm
-  mq135Idx?: number; // relative trend
-  co2Est: number; // ESTIMATE
-  people: number; // ASSUMED occupants
-  ach: number; // ASSUMED
-  volumeM3: number;
-  aqiOut: number;
-  aqiSrc: string;
-  led: string | number; // drives the three LED dots in top rail
-  timeScale: number;
-  distanceCm?: number; // (HC-SR04, cm)
-}
+export type { LatestReading };
 
-export type SourceStatus = 'LIVE' | 'STALE' | 'DEMO';
+export type SourceStatus = 'LIVE' | 'STALE' | 'DEMO' | 'NO DEVICE CONFIGURED' | 'NO DEVICE DATA YET';
 
-export async function fetchLatestReading(): Promise<LatestReading | null> {
+export type FetchReadingResult =
+  | { success: true; reading: LatestReading }
+  | { success: false; reason: 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR'; error?: unknown };
+
+export async function fetchLatestReading(): Promise<FetchReadingResult> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) return null;
+  if (!apiUrl) {
+    return { success: false, reason: 'NO_CONFIG' };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const res = await fetch(`${apiUrl}/latest`, { next: { revalidate: 30 } });
-    if (!res.ok) return null;
+    const res = await fetch(`${apiUrl}/latest`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 404) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+
+    if (!res.ok) {
+      return { success: false, reason: 'ERROR', error: new Error(`HTTP ${res.status}`) };
+    }
+
     const data = await res.json();
-    return {
+    const reading: LatestReading = {
       deviceId: String(data.deviceId || 'esp32-advisor'),
       ts: Number(data.ts ?? (data.timestamp ? Math.floor(data.timestamp / 1000) : Math.floor(Date.now() / 1000))),
-      tempC: data.tempC !== undefined ? Number(data.tempC) : (data.temperature !== undefined ? Number(data.temperature) : undefined),
+      tempC: data.tempC !== undefined ? Number(data.tempC) : undefined,
       humidity: data.humidity !== undefined ? Number(data.humidity) : undefined,
-      pir: Boolean(data.pir ?? data.pirPresence),
+      pir: Boolean(data.pir),
       windowOpen: Boolean(data.windowOpen),
-      mq135Mv: Number(data.mq135Mv ?? data.mq135Raw ?? 0),
-      mq135Idx: data.mq135Idx !== undefined ? Number(data.mq135Idx) : (data.mq135Raw !== undefined ? Number(data.mq135Raw) : undefined),
-      co2Est: Number(data.co2Est ?? data.co2Estimated ?? 420),
-      people: Number(data.people ?? data.occupants ?? 1),
-      ach: Number(data.ach ?? (data.windowOpen ? 4.0 : 0.4)),
-      volumeM3: Number(data.volumeM3 ?? data.roomVolume ?? 36),
-      aqiOut: Number(data.aqiOut ?? data.outdoorAQI ?? 50),
-      aqiSrc: String(data.aqiSrc ?? 'Open-Meteo'),
-      led: data.led ?? (data.windowOpen ? 'GREEN' : 'AMBER'),
-      timeScale: Number(data.timeScale ?? 1),
       distanceCm: data.distanceCm !== undefined ? Number(data.distanceCm) : undefined,
+      mq135Mv: Number(data.mq135Mv ?? 0),
+      mq135Idx: data.mq135Idx !== undefined ? Number(data.mq135Idx) : undefined,
+      co2Est: Number(data.co2Est ?? 420),
+      people: Number(data.people ?? 1),
+      ach: Number(data.ach ?? (data.windowOpen ? 4.0 : 0.4)),
+      volumeM3: Number(data.volumeM3 ?? 36),
+      aqiOut: Number(data.aqiOut ?? 50),
+      aqiSrc: String(data.aqiSrc ?? 'Open-Meteo'),
+      led: (data.led === 'green' || data.led === 'red' || data.led === 'off') ? data.led : (data.windowOpen ? 'green' : 'off'),
+      timeScale: Number(data.timeScale ?? 1),
     };
+
+    return { success: true, reading };
   } catch (err) {
-    console.error('Failed to fetch latest reading:', err);
-    return null;
+    clearTimeout(timeoutId);
+    return { success: false, reason: 'ERROR', error: err };
   }
 }
 
@@ -113,9 +119,17 @@ export async function fetchOutdoorForecast(): Promise<HourlyForecast[]> {
   }
 }
 
-export function getSourceStatus(readingTime: number, isDemo: boolean): SourceStatus {
+export function getSourceStatus(
+  lastUpdated: number,
+  isDemo: boolean,
+  lastFetchStatus?: 'IDLE' | 'SUCCESS' | 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR',
+  hasApiConfig?: boolean
+): SourceStatus {
   if (isDemo) return 'DEMO';
-  const ageMs = Date.now() - readingTime;
-  if (ageMs > 2 * 60 * 1000) return 'STALE';
+  if (hasApiConfig === false || lastFetchStatus === 'NO_CONFIG') return 'NO DEVICE CONFIGURED';
+  if (lastUpdated <= 0) return 'NO DEVICE DATA YET';
+  if (lastFetchStatus === 'ERROR') return 'STALE';
+  const ageMs = Date.now() - lastUpdated;
+  if (ageMs > 60 * 1000) return 'STALE';
   return 'LIVE';
 }

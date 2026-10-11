@@ -40,6 +40,9 @@ interface EnvironmentStore {
   esp32Connected: boolean;
   awsConnected: boolean;
   lastUpdated: number;
+  latestReading: LatestReading | null;
+  lastFetchStatus: 'IDLE' | 'SUCCESS' | 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR';
+  liveTrendHistory: Array<{ ts: number; co2Est: number; mq135Idx?: number }>;
 
   // Actions
   setOccupants: (n: number) => void;
@@ -55,6 +58,7 @@ interface EnvironmentStore {
   tick: (dtSeconds?: number) => void;
   setModelParam: <K extends keyof ModelParams>(key: K, value: ModelParams[K]) => void;
   applyLatestReading: (r: LatestReading) => void;
+  handleFetchFailure: (reason: 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR') => void;
   applyForecast: (f: HourlyForecast[]) => void;
 }
 
@@ -123,7 +127,10 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
 
     esp32Connected: true,
     awsConnected: true,
-    lastUpdated: Date.now(),
+    lastUpdated: 0,
+    latestReading: null,
+    lastFetchStatus: 'IDLE',
+    liveTrendHistory: [],
 
     setOccupants: (n) => {
       const state = get();
@@ -288,7 +295,12 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       const readingTsMs = reading.ts > 1e11 ? reading.ts : reading.ts * 1000;
       const pirActive = Boolean(reading.pir);
       const co2Val = Math.round(reading.co2Est);
-      const outdoorAQIVal = Math.round(reading.aqiOut ?? state.sensorData.outdoorAQI);
+
+      // Outdoor AQI for verdict is the app's own Open-Meteo current value, falling back to aqiOut if that fetch fails
+      const openMeteoAQI = (state.hourlyForecast.length > 0 && typeof state.hourlyForecast[0].aqi === 'number')
+        ? state.hourlyForecast[0].aqi
+        : undefined;
+      const outdoorAQIVal = openMeteoAQI !== undefined ? openMeteoAQI : Math.round(reading.aqiOut ?? state.sensorData.outdoorAQI);
 
       const newSensor: SensorData = {
         ...state.sensorData,
@@ -309,13 +321,16 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
         volumeM3: reading.volumeM3,
         ach: reading.ach,
         outdoorAQI: outdoorAQIVal,
-        aqiSrc: reading.aqiSrc ?? state.sensorData.aqiSrc,
+        aqiSrc: openMeteoAQI !== undefined ? 'Open-Meteo' : (reading.aqiSrc ?? state.sensorData.aqiSrc),
         led: reading.led,
         timeScale: reading.timeScale ?? 1,
         deviceId: reading.deviceId,
       };
 
+      // windowOpen drives the sash (unless previewOpen is set)
       const newWindowState: WindowState = reading.windowOpen ? 'open' : 'closed';
+      const targetWindowState: WindowState = state.previewOpen !== null ? (state.previewOpen ? 'open' : 'closed') : newWindowState;
+      const targetSashAngle = state.previewOpen !== null ? (state.previewOpen ? 60 : 0) : (reading.windowOpen ? 60 : 0);
       
       // Compute verdict in the frontend (computeVerdict) from co2Est and outdoor AQI
       const newVerdict = computeVerdict(
@@ -340,16 +355,33 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       });
       if (newHistory.length > 30) newHistory.shift();
 
+      // Live trend strips: keep a rolling in-memory history (last 60 readings) of co2Est and mq135Idx
+      const newLiveTrend = [
+        ...state.liveTrendHistory,
+        {
+          ts: reading.ts,
+          co2Est: co2Val,
+          mq135Idx: reading.mq135Idx,
+        }
+      ].slice(-60);
+
       set({
+        latestReading: reading,
+        lastFetchStatus: 'SUCCESS',
         sensorData: newSensor,
         modelParams: newParams,
-        windowState: newWindowState,
-        sashAngle: reading.windowOpen ? 60 : 0,
+        windowState: targetWindowState,
+        sashAngle: targetSashAngle,
         recommendation: newVerdict as Recommendation,
         envState: newEnvState,
         lastUpdated: readingTsMs,
         historicalCO2: newHistory,
+        liveTrendHistory: newLiveTrend,
       });
+    },
+
+    handleFetchFailure: (reason: 'NO_CONFIG' | 'NOT_FOUND' | 'ERROR') => {
+      set({ lastFetchStatus: reason });
     },
 
     applyForecast: (forecast: HourlyForecast[]) => {
@@ -363,11 +395,18 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
         outdoorAQI: currentAQI,
         outdoorPM25: currentPM25,
       };
+
+      const newVerdict = computeVerdict(
+        state.sensorData.co2Estimated,
+        currentAQI,
+        state.modelParams.co2Threshold,
+        state.modelParams.aqiThreshold
+      );
       
       set({
         hourlyForecast: forecast,
         sensorData: newSensor,
-        recommendation: computeRecommendation(state.sensorData.co2Estimated, currentAQI, state.modelParams, state.windowState !== 'closed'),
+        recommendation: newVerdict as Recommendation,
       });
     },
 
@@ -417,6 +456,15 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
         mq135: newSensor.mq135Raw,
       });
 
+      const newLiveTrend = [
+        ...state.liveTrendHistory,
+        {
+          ts: Math.floor(Date.now() / 1000),
+          co2Est: newCO2Rounded,
+          mq135Idx: mqIdx,
+        }
+      ].slice(-60);
+
       // Check recommendation change
       const events = [...state.events];
       if (newRec !== state.recommendation) {
@@ -434,6 +482,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
         confidence: newConf,
         envState: newEnvState,
         historicalCO2: newHistory,
+        liveTrendHistory: newLiveTrend,
         lastUpdated: Date.now(),
         events: events.slice(0, 20),
       });

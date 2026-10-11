@@ -18,6 +18,26 @@ export type WindowState = 'closed' | 'ajar' | 'open';
 // AQI level label
 export type AQILevel = 'Good' | 'Moderate' | 'Unhealthy for Sensitive' | 'Unhealthy' | 'Very Unhealthy' | 'Hazardous';
 
+export interface LatestReading {
+  deviceId: string;
+  ts: number; // epoch SECONDS
+  tempC?: number;
+  humidity?: number;
+  pir: boolean; // presence, not a headcount
+  windowOpen: boolean;
+  distanceCm?: number;
+  mq135Mv: number; // raw mV, never ppm
+  mq135Idx?: number; // relative trend only
+  co2Est: number; // ESTIMATE
+  people: number; // ASSUMED occupants
+  ach: number; // ASSUMED
+  volumeM3: number;
+  aqiOut: number;
+  aqiSrc: string;
+  led: 'green' | 'red' | 'off';
+  timeScale: number;
+}
+
 export interface SensorData {
   timestamp: number;        // Unix ms
   co2Estimated: number;     // ppm (model-based, est.)
@@ -39,7 +59,7 @@ export interface SensorData {
   volumeM3: number;         // room volume m³
   ach: number;              // assumed ACH
   aqiSrc?: string;          // AQI source
-  led?: string | number;    // LED indicator for top rail
+  led?: 'green' | 'red' | 'off'; // LED indicator for top rail
   timeScale: number;        // time scale multiplier (1 = realtime)
   deviceId?: string;
 }

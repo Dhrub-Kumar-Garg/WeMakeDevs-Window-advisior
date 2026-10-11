@@ -130,7 +130,7 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
   volumeM3: sensorData.volumeM3 ?? 36,
   aqiOut: sensorData.outdoorAQI,
   aqiSrc: sensorData.aqiSrc ?? 'Open-Meteo',
-  led: sensorData.led ?? (isOpen ? 'GREEN' : 'AMBER'),
+  led: sensorData.led ?? (isOpen ? 'green' : 'off'),
   timeScale: sensorData.timeScale ?? 1,
   ...(sensorData.distanceCm !== undefined ? { distanceCm: sensorData.distanceCm } : {})
 }, null, 2)}
