@@ -14,23 +14,29 @@ export default function PlumbingLine() {
   ];
 
   return (
-    <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 pb-24">
+    <div className="w-full bg-[#efe8df] text-[#2c2825] border-t border-[#e6decb] p-6 lg:p-12 flex flex-col items-center">
       <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-12 md:items-start">
         
-        <div className="flex-shrink-0 md:w-1/4">
-          <h2 className="font-serif italic text-2xl text-[#111111] mb-2">Hardware & Data</h2>
-          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">System Plumbing</p>
+        <div className="flex-shrink-0 md:w-1/3">
+          <h2 className="font-serif italic text-3xl md:text-4xl text-[#2c2825] mb-2">Hardware & Data</h2>
+          <p className="font-mono text-xs uppercase tracking-widest text-[#8c8273] mb-8">System Plumbing</p>
+          
+          {/* Breadboard Photo Slot */}
+          <div className="w-full aspect-video bg-[#e6decb] border border-[#d5ccba] flex items-center justify-center relative overflow-hidden mb-4">
+            <span className="font-mono text-xs text-[#8c8273] uppercase tracking-widest">Breadboard Photo</span>
+          </div>
+          <p className="font-mono text-[10px] text-[#8c8273] italic">Physical prototype running the ESP32 and sensors.</p>
         </div>
 
-        <div className="w-full font-mono text-xs text-[#111111] uppercase tracking-wide flex flex-col gap-4">
+        <div className="w-full font-mono text-xs text-[#2c2825] uppercase tracking-wide flex flex-col gap-4">
            {hardware.map(item => (
-              <div key={item.name} className="flex flex-col sm:flex-row sm:justify-between border-b border-[#e2e8f0] pb-2">
-                 <div className="flex flex-col gap-1">
+              <div key={item.name} className="flex flex-col sm:flex-row sm:justify-between border-b border-[#e6decb] pb-2">
+                 <div className="flex flex-col gap-1 max-w-sm">
                     <span className="font-bold">{item.name}</span>
-                    <span className="text-[#666666] normal-case tracking-normal">{item.role}</span>
+                    <span className="text-[#8c8273] normal-case tracking-normal">{item.role}</span>
                  </div>
                  <div className="mt-2 sm:mt-0 flex items-start">
-                    <span className={`px-2 py-0.5 text-[10px] text-white ${item.status === 'LIVE' ? 'bg-[#111111]' : 'bg-[#e2e8f0] text-[#666666]'}`}>
+                    <span className={`px-2 py-0.5 text-[10px] text-white ${item.status === 'LIVE' ? 'bg-[#ff5f1f]' : 'bg-[#d5ccba] text-[#8c8273]'}`}>
                       {item.status}
                     </span>
                  </div>
@@ -39,6 +45,6 @@ export default function PlumbingLine() {
         </div>
 
       </div>
-    </section>
+    </div>
   );
 }

@@ -7,8 +7,8 @@ export default function EvidenceTraces() {
   // SVG metrics
   const width = 1200;
   const height = 300;
-  const paddingX = 60;
-  const paddingY = 40;
+  const paddingX = 70;
+  const paddingY = 60;
 
   const maxPPM = 1300;
   const minPPM = 400;
@@ -34,38 +34,46 @@ export default function EvidenceTraces() {
     const pathPhysics = physicsData.map((d, i) => `${i===0?'M':'L'} ${getX(i)} ${getYPhysics(d)}`).join(' ');
     const pathMQ135 = mq135Data.map((d, i) => `${i===0?'M':'L'} ${getX(i)} ${getYMQ135(d)}`).join(' ');
 
+    const ink = '#2c2825';
+    const inkDim = '#8c8273';
+    const accent = '#ff5f1f'; // keeping signal orange for emphasis
+
     return (
       <g>
-        <text x={paddingX} y={paddingY - 15} fontFamily={tokens.fonts.sans} fontSize="16" fontWeight="bold" fill={tokens.colors.ink}>{title}</text>
-        <text x={paddingX} y={paddingY + 5} fontFamily={tokens.fonts.mono} fontSize="11" fill={tokens.colors.inkDim}>{caption}</text>
+        <text x={paddingX} y={paddingY - 35} fontFamily="serif" fontStyle="italic" fontSize="18" fill={ink}>{title}</text>
+        <text x={paddingX} y={paddingY - 15} fontFamily="monospace" fontSize="10" fill={inkDim}>{caption}</text>
 
         {/* Axes */}
-        <line x1={paddingX} y1={height - paddingY} x2={(width/2) - paddingX} y2={height - paddingY} stroke={tokens.colors.ink} strokeWidth="1" />
-        <line x1={paddingX} y1={paddingY} x2={paddingX} y2={height - paddingY} stroke={tokens.colors.ink} strokeWidth="1" />
-        <line x1={(width/2) - paddingX} y1={paddingY} x2={(width/2) - paddingX} y2={height - paddingY} stroke={tokens.colors.ink} strokeWidth="1" />
+        <line x1={paddingX} y1={height - paddingY} x2={(width/2) - paddingX} y2={height - paddingY} stroke={ink} strokeWidth="1" />
+        <line x1={paddingX} y1={paddingY} x2={paddingX} y2={height - paddingY} stroke={ink} strokeWidth="1" />
+        <line x1={(width/2) - paddingX} y1={paddingY} x2={(width/2) - paddingX} y2={height - paddingY} stroke={inkDim} strokeWidth="1" strokeDasharray="2 2" />
         
         {/* Y Axis Labels (Left: PPM, Right: Relative) */}
-        <text x={paddingX - 10} y={paddingY} textAnchor="end" fontFamily={tokens.fonts.mono} fontSize="10" fill={tokens.colors.ink}>{maxPPM}</text>
-        <text x={paddingX - 10} y={height - paddingY} textAnchor="end" fontFamily={tokens.fonts.mono} fontSize="10" fill={tokens.colors.ink}>{minPPM}</text>
+        <text x={paddingX - 10} y={paddingY + 4} textAnchor="end" fontFamily="monospace" fontSize="10" fill={ink}>{maxPPM}</text>
+        <text x={paddingX - 10} y={height - paddingY + 4} textAnchor="end" fontFamily="monospace" fontSize="10" fill={ink}>{minPPM}</text>
         
-        <text x={(width/2) - paddingX + 10} y={paddingY} textAnchor="start" fontFamily={tokens.fonts.mono} fontSize="10" fill={tokens.colors.inkDim}>{maxRel}</text>
-        <text x={(width/2) - paddingX + 10} y={height - paddingY} textAnchor="start" fontFamily={tokens.fonts.mono} fontSize="10" fill={tokens.colors.inkDim}>{minRel}</text>
+        <text x={(width/2) - paddingX + 10} y={paddingY + 4} textAnchor="start" fontFamily="monospace" fontSize="10" fill={inkDim}>{maxRel}</text>
+        <text x={(width/2) - paddingX + 10} y={height - paddingY + 4} textAnchor="start" fontFamily="monospace" fontSize="10" fill={inkDim}>{minRel}</text>
+
+        {/* Right axis title */}
+        <text x={(width/2) - paddingX + 10} y={paddingY - 15} textAnchor="start" fontFamily="monospace" fontSize="9" fill={inkDim} className="uppercase tracking-widest">
+          relative trend, not ppm
+        </text>
 
         {/* Traces */}
-        <path d={pathPhysics} fill="none" stroke={tokens.colors.ink} strokeWidth="2" />
-        <path d={pathMQ135} fill="none" stroke={tokens.colors.inkDim} strokeWidth="1" strokeDasharray="2 2" />
+        <path d={pathPhysics} fill="none" stroke={ink} strokeWidth="2" />
+        <path d={pathMQ135} fill="none" stroke={inkDim} strokeWidth="1.5" strokeDasharray="4 4" />
       </g>
     );
   };
 
   return (
-    <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
+    <div className="w-full bg-[#f4efe6] text-[#2c2825] border-t border-[#e6decb] p-6 lg:p-12 flex flex-col items-center">
       <div className="w-full max-w-7xl">
-        <h2 className="font-serif italic text-3xl md:text-4xl text-[#111111] mb-2">Scientific Evidence</h2>
+        <h2 className="font-serif italic text-3xl md:text-4xl mb-4 text-[#2c2825]">Scientific Evidence</h2>
         <div className="flex flex-col md:flex-row justify-between md:items-end mb-12 gap-4">
-          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">Indoor VOC/Gas Trend (MQ135) relative trend, not ppm</p>
-          <p className="font-mono text-[10px] text-[#666666]">
-            It only cross-checks that the trends agree in direction.
+          <p className="font-mono text-xs uppercase tracking-widest text-[#8c8273] max-w-2xl">
+            We use a physics model for CO₂ because cheap sensors drift. The MQ135 sensor is only used to cross-check that the trend direction agrees, ensuring the model isn't drastically wrong.
           </p>
         </div>
         
@@ -73,12 +81,12 @@ export default function EvidenceTraces() {
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[1000px] h-auto" role="img" aria-label="Physics Model vs MQ135 Relative Trend Chart">
             
             {/* Legend */}
-            <g transform={`translate(${width - 250}, 15)`} fontFamily={tokens.fonts.mono} fontSize="11">
-              <line x1="0" y1="-4" x2="20" y2="-4" stroke={tokens.colors.ink} strokeWidth="2" />
-              <text x="30" y="0" fill={tokens.colors.ink}>Physics (ppm)</text>
+            <g transform={`translate(${width - 250}, 25)`} fontFamily="monospace" fontSize="10">
+              <line x1="0" y1="-4" x2="20" y2="-4" stroke="#2c2825" strokeWidth="2" />
+              <text x="30" y="0" fill="#2c2825">Physics (ppm)</text>
 
-              <line x1="120" y1="-4" x2="140" y2="-4" stroke={tokens.colors.inkDim} strokeWidth="1" strokeDasharray="2 2" />
-              <text x="150" y="0" fill={tokens.colors.inkDim}>MQ135 (rel)</text>
+              <line x1="120" y1="-4" x2="140" y2="-4" stroke="#8c8273" strokeWidth="1.5" strokeDasharray="4 4" />
+              <text x="150" y="0" fill="#8c8273">MQ135 (rel)</text>
             </g>
 
             <g transform="translate(0, 0)">
@@ -91,6 +99,6 @@ export default function EvidenceTraces() {
           </svg>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
