@@ -39,34 +39,62 @@ function ReasonSentence({ state, setFocus, textColor }: { state: AdvisorState, s
   }
 }
 
-function AnimatedVerdict({ text, reducedMotion, accentColor, textColor }: { text: string, reducedMotion: boolean, accentColor: string, textColor: string }) {
-  const letters = text.replace('_', ' ').split('');
+function AnimatedVerdict({ verdictId, reducedMotion, accentColor, textColor }: { verdictId: string, reducedMotion: boolean, accentColor: string, textColor: string }) {
+  const verdictLines: Record<string, string[]> = {
+    'OPEN_WINDOW': ['OPEN', 'WINDOW'],
+    'KEEP_CLOSED': ['KEEP', 'WINDOW', 'CLOSED'],
+    'WAIT': ['WAIT FOR', 'BETTER AIR'],
+    'OPTIMAL': ['AIR IS', 'OPTIMAL']
+  };
+
+  const lines = verdictLines[verdictId] || [verdictId.replace('_', ' ')];
+  const longestLineLen = Math.max(...lines.map(l => l.length));
+
   return (
-    <div className="relative font-serif leading-[0.8] tracking-tight uppercase py-2 flex items-center" aria-live="polite" style={{ fontSize: 'clamp(56px, 10vw, 200px)', color: textColor }}>
+    <div className="relative font-serif leading-[0.9] tracking-tight uppercase py-2 flex flex-col @container w-full" aria-live="polite" style={{ color: textColor }}>
       {/* Accent marker (not color-only for state) */}
       <div 
-        className="absolute -left-6 lg:-left-12 flex items-center justify-center w-2 h-full" 
+        className="absolute -left-4 lg:-left-8 flex items-center justify-center w-2 h-full" 
         style={{ color: accentColor }}
         aria-hidden="true"
       >
         <div className="w-2 h-3/4 rounded-full" style={{ backgroundColor: accentColor }} />
-        <span className="absolute top-1/2 -left-4 -translate-y-1/2 text-sm font-sans font-bold">
-          {text === 'WAIT' ? '!' : text === 'OPEN WINDOW' ? '✓' : '•'}
+        <span className="absolute top-1/2 -left-3 -translate-y-1/2 text-sm font-sans font-bold">
+          {verdictId === 'WAIT' ? '!' : verdictId === 'OPEN_WINDOW' ? '✓' : '•'}
         </span>
       </div>
 
-      <div className="flex flex-wrap" key={text}>
-        {letters.map((char, i) => (
-          <motion.span
-            key={`${char}-${i}`}
-            initial={reducedMotion ? false : { y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={reducedMotion ? { duration: 0 } : { type: 'spring', damping: 12, stiffness: 100, delay: i * 0.03 }}
-            className={char === ' ' ? 'w-[0.3em]' : ''}
-          >
-            {char}
-          </motion.span>
-        ))}
+      <div 
+        className="flex flex-col" 
+        key={verdictId}
+        style={{ fontSize: `clamp(48px, 100cqw / ${longestLineLen * 0.55}, 200px)` }}
+      >
+        {lines.map((line, li) => {
+          const words = line.split(' ');
+          return (
+            <div key={li} className="block whitespace-nowrap break-keep" style={{ hyphens: 'none' }}>
+              {words.map((word, wi) => (
+                <span key={wi} className="inline-block whitespace-nowrap break-keep" style={{ hyphens: 'none' }}>
+                  {word.split('').map((char, ci) => {
+                    const delayIndex = li * 10 + wi * 5 + ci;
+                    return (
+                      <motion.span
+                        key={ci}
+                        className="inline-block"
+                        initial={reducedMotion ? false : { y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={reducedMotion ? { duration: 0 } : { type: 'spring', damping: 12, stiffness: 100, delay: delayIndex * 0.03 }}
+                      >
+                        {char}
+                      </motion.span>
+                    );
+                  })}
+                  {wi < words.length - 1 && <span className="inline-block w-[0.3em]">&nbsp;</span>}
+                </span>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -101,16 +129,8 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
     : 'Should I open the window?';
 
   return (
-    <div className={`relative w-full ${isMobile ? 'max-w-full py-8' : 'max-w-[46vw] h-full'} flex flex-col justify-center pointer-events-auto`}>
-      {/* Soft radial scrim for readability on desktop */}
-      {!isMobile && (
-        <div 
-          className="absolute inset-0 -inset-x-[20vw] -inset-y-[20vh] pointer-events-none -z-10"
-          style={{
-            background: `radial-gradient(ellipse at 30% 50%, ${scrimFade} 0%, transparent 60%)`
-          }}
-        />
-      )}
+    <div className={`relative w-full ${isMobile ? 'max-w-full pt-6 pb-6' : 'max-w-[46vw] h-full'} flex flex-col justify-center pointer-events-auto`}>
+      {/* Scrim removed to prevent washing out the 3D scene */}
       
       <div className="pl-8 lg:pl-16">
         <h2 className="font-serif italic text-xl lg:text-3xl mb-2 lg:mb-4" style={{ color: textColor }}>
@@ -118,7 +138,7 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
         </h2>
 
         <AnimatedVerdict 
-          text={activeVerdict} 
+          verdictId={activeVerdict} 
           reducedMotion={reducedMotion} 
           accentColor={accentColor} 
           textColor={textColor}

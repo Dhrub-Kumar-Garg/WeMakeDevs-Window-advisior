@@ -8,6 +8,8 @@ function getAQIColor(aqi: number) {
   return '#ef4444'; // Unhealthy/Hazardous
 }
 
+import EvidenceStrip from './EvidenceStrip';
+
 export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -67,7 +69,7 @@ export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col justify-end pointer-events-auto">
-      <div className="px-4 pb-1 text-[10px] font-mono text-gray-400 opacity-60">
+      <div className="px-4 pb-1 pt-1.5 bg-[rgba(244,240,234,0.85)] text-[10px] font-mono text-gray-500 opacity-80 border-t border-[#111111]/5">
         DRAG TO PREDICT CO₂ & VERDICT
       </div>
       <div 

@@ -1,29 +1,27 @@
 import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneInputs } from './useSceneInputs';
 
 const vertexShader = `
   uniform float uTime;
   uniform float uSpeed;
+  uniform float uDpr;
   attribute float aOffset;
   attribute float aSize;
   varying float vAlpha;
   
   void main() {
-    // Brownian motion base
     vec3 pos = position;
     
-    // Wind drift towards +Z (into the room) and +X (across) based on speed
     float driftZ = uTime * uSpeed * (0.5 + aOffset * 0.5);
     float driftX = uTime * uSpeed * 0.2 * sin(aOffset * 10.0);
-    float driftY = uTime * 0.05 * cos(aOffset * 20.0); // slow settling
+    float driftY = uTime * 0.05 * cos(aOffset * 20.0);
     
     pos.z += driftZ;
     pos.x += driftX;
     pos.y -= driftY;
 
-    // Wrap around bounds: Room is ~[-2.5, 2.5] in X, [0, 3] in Y, [-0.5, 4] in Z
     pos.x = mod(pos.x + 2.5, 5.0) - 2.5;
     pos.y = mod(pos.y, 3.0);
     pos.z = mod(pos.z + 0.5, 4.5) - 0.5;
@@ -31,11 +29,27 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = aSize * (10.0 / -mvPosition.z);
+    // Clamp point size 1.5 - 5.0, multiply by DPR
+    float pointSize = aSize * (10.0 / -mvPosition.z);
+    gl_PointSize = clamp(pointSize, 1.5, 5.0) * uDpr;
     
-    // Fade at edges
-    float distToCenter = length(pos.xy - vec2(0.0, 1.5));
-    vAlpha = smoothstep(2.0, 0.0, distToCenter) * 0.4;
+    // Light cone masking: Window is at X=0, Y=1.65, Z=0
+    vec2 coneCenter = vec2(0.0, 1.65);
+    
+    // Light is coming from top right (X=2, Y=4, Z=-3) targeting left floor (X=-1, Y=0, Z=1.5)
+    // The beam roughly shifts left (-X) and down (-Y) as it enters the room (+Z).
+    vec2 beamCenter = coneCenter + vec2(-0.2, -0.3) * pos.z;
+    
+    float distToCenter = length(pos.xy - beamCenter);
+    float maxRadius = 0.5 + pos.z * 0.1; // very tight beam, expanding slightly
+    
+    float coneAlpha = smoothstep(maxRadius, maxRadius - 0.2, distToCenter);
+    
+    // Fade out dust entirely if it's outside the window (Z < 0) or too close to camera
+    float zAlpha = smoothstep(-0.1, 0.1, pos.z) * smoothstep(4.0, 3.5, pos.z);
+    
+    float baseOpacity = 0.15 + 0.2 * aOffset; // 0.15 - 0.35
+    vAlpha = coneAlpha * baseOpacity * zAlpha;
   }
 `;
 
@@ -51,9 +65,10 @@ const fragmentShader = `
 
 export default function Dust() {
   const { effectiveACH, windowOpen, reducedMotion, isMobile } = useSceneInputs();
+  const { viewport } = useThree();
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   
-  const count = isMobile ? 300 : 1000;
+  const count = isMobile ? 300 : 600;
   
   const [positions, offsets, sizes] = useMemo(() => {
     const pos = new Float32Array(count * 3);
@@ -61,11 +76,11 @@ export default function Dust() {
     const size = new Float32Array(count);
     
     for (let i = 0; i < count; i++) {
-      pos[i * 3 + 0] = (Math.random() - 0.5) * 5; // x
-      pos[i * 3 + 1] = Math.random() * 3;         // y
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 4.5; // z
+      pos[i * 3 + 0] = (Math.random() - 0.5) * 5;
+      pos[i * 3 + 1] = Math.random() * 3;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 4.5;
       off[i] = Math.random();
-      size[i] = 2.0 + Math.random() * 3.0;
+      size[i] = 1.5 + Math.random() * 3.5;
     }
     return [pos, off, size];
   }, [count]);
@@ -73,11 +88,7 @@ export default function Dust() {
   useFrame((state) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      // When closed, slight brownian drift. When open, proportional to effectiveACH
-      // If reduced motion, set target speed to 0 (static)
       const targetSpeed = reducedMotion ? 0 : (windowOpen ? Math.max(0.2, effectiveACH * 0.1) : 0.02);
-      
-      // smoothly interpolate speed
       const currentSpeed = materialRef.current.uniforms.uSpeed.value;
       materialRef.current.uniforms.uSpeed.value = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.05);
     }
@@ -96,7 +107,8 @@ export default function Dust() {
         fragmentShader={fragmentShader}
         uniforms={{
           uTime: { value: 0 },
-          uSpeed: { value: 0.02 }
+          uSpeed: { value: 0.02 },
+          uDpr: { value: viewport.dpr }
         }}
         transparent={true}
         depthWrite={false}

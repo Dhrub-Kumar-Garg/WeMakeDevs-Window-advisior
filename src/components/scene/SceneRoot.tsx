@@ -3,7 +3,7 @@
 import { Canvas } from '@react-three/fiber';
 import { AdaptiveDpr, PerformanceMonitor, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Room from './Room';
 import Lighting from './Lighting';
 import Effects from './Effects';
@@ -12,10 +12,9 @@ import { useSceneInputs } from './useSceneInputs';
 import WindowAssembly from './WindowAssembly';
 import Sky from './Sky';
 import Dust from './Dust';
-import WallDisplay from './WallDisplay';
 
 export default function SceneRoot() {
-  const { co2Ratio } = useSceneInputs();
+  const { co2Ratio, isMobile } = useSceneInputs();
   const [dpr, setDpr] = useState(1.5);
   const [frameloop, setFrameloop] = useState<'always' | 'demand'>('always');
 
@@ -36,12 +35,11 @@ export default function SceneRoot() {
         <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(1.5)} />
         <AdaptiveDpr pixelated />
         
-        <PerspectiveCamera makeDefault position={[1.5, 1.2, 4]} fov={50} />
+        <PerspectiveCamera makeDefault position={[isMobile ? 0 : -0.6, 1.2, 3.2]} fov={50} />
         
         <Sky />
         <Room />
         <WindowAssembly />
-        <WallDisplay />
         <Lighting />
         <Dust />
         <Effects enabled={dpr > 1} />

@@ -32,11 +32,17 @@ export default function TopRail({ state }: { state: AdvisorState }) {
         WINDOW-OPEN ADVISOR
       </div>
       
-      <div className="flex justify-center items-center gap-2 text-white shrink-0">
-        <span className={`px-2 py-0.5 font-bold ${badgeColor}`}>
+      <div className="flex justify-center items-center gap-2 text-white shrink-0" suppressHydrationWarning>
+        <div className="hidden sm:flex items-center gap-1.5 mr-2" suppressHydrationWarning>
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'OPEN WINDOW' ? 'bg-[#00d8a5]' : 'bg-[#333]'}`} />
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'WAIT FOR BETTER AIR' ? 'bg-[#eab308]' : 'bg-[#333]'}`} />
+          <div className={`w-2 h-2 rounded-full ${state.verdict === 'KEEP WINDOW CLOSED' ? 'bg-[#ff5f1f]' : 'bg-[#333]'}`} />
+          <span className="ml-1 opacity-90" style={{ color: state.verdict === 'WAIT FOR BETTER AIR' ? '#eab308' : state.verdict === 'OPEN WINDOW' ? '#00d8a5' : '#ff5f1f' }}>{state.verdict}</span>
+        </div>
+        <span suppressHydrationWarning className={`px-2 py-0.5 font-bold ${badgeColor}`}>
           {state.sourceStatus}
         </span>
-        <span className="opacity-70 whitespace-nowrap hidden md:inline">last reading {ageText}</span>
+        <span suppressHydrationWarning className="opacity-70 whitespace-nowrap hidden md:inline">last reading {ageText}</span>
       </div>
       
       <div className="flex-1 flex justify-end gap-3 lg:gap-6 text-white ml-4">

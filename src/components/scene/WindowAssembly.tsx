@@ -67,34 +67,30 @@ export default function WindowAssembly() {
       {/* Outer Frame Bars */}
       <mesh position={[0, height/2 - frameThickness/2, 0]} castShadow receiveShadow>
         <boxGeometry args={[width, frameThickness, frameDepth]} />
-        <meshStandardMaterial color="#333" />
+        <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
       </mesh>
       <mesh position={[0, -height/2 + frameThickness/2, 0]} castShadow receiveShadow>
         <boxGeometry args={[width, frameThickness, frameDepth]} />
-        <meshStandardMaterial color="#333" />
+        <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
       </mesh>
       <mesh position={[-width/2 + frameThickness/2, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[frameThickness, height, frameDepth]} />
-        <meshStandardMaterial color="#333" />
+        <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
       </mesh>
       <mesh position={[width/2 - frameThickness/2, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[frameThickness, height, frameDepth]} />
-        <meshStandardMaterial color="#333" />
+        <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
       </mesh>
       {/* Mullion */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[frameThickness, height, frameDepth]} />
-        <meshStandardMaterial color="#333" />
+        <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
       </mesh>
       
       {/* Right Fixed Glass */}
       <mesh position={[width/4, 0, 0]}>
         <boxGeometry args={[width/2 - frameThickness, height - frameThickness*2, 0.01]} />
-        {isLowPerf ? (
-          <meshStandardMaterial color="#88ccff" transparent opacity={0.3} roughness={0.1} />
-        ) : (
-          <meshPhysicalMaterial transmission={0.95} thickness={0.02} roughness={0.05} ior={1.5} color="#e0f0ff" />
-        )}
+        <meshPhysicalMaterial transparent opacity={0.12} roughness={0.05} color="#ffffff" toneMapped={false} />
       </mesh>
 
       {/* Sash Group (Left half) */}
@@ -110,15 +106,11 @@ export default function WindowAssembly() {
         <group position={[width/4, 0, 0]}>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[width/2, height, frameThickness]} />
-            <meshStandardMaterial color="#444" />
+            <meshStandardMaterial color="#f4f4f4" roughness={0.4} />
           </mesh>
           <mesh position={[0, 0, 0]}>
             <boxGeometry args={[width/2 - frameThickness*2, height - frameThickness*2, 0.011]} />
-            {isLowPerf ? (
-              <meshStandardMaterial color="#88ccff" transparent opacity={0.3} roughness={0.1} />
-            ) : (
-              <meshPhysicalMaterial transmission={0.95} thickness={0.02} roughness={0.05} ior={1.5} color="#e0f0ff" />
-            )}
+            <meshPhysicalMaterial transparent opacity={0.12} roughness={0.05} color="#ffffff" toneMapped={false} />
           </mesh>
           
           <Html position={[0, 0, frameThickness]} center zIndexRange={[100, 0]} transform>

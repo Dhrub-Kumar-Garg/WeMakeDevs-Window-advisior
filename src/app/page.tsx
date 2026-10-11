@@ -15,6 +15,8 @@ import TopRail from '@/components/TopRail';
 import LeftOverlay from '@/components/LeftOverlay';
 import BottomScrubStrip from '@/components/BottomScrubStrip';
 
+import EvidenceStrip from '@/components/EvidenceStrip';
+
 function DashboardContent() {
   const state = useAdvisorState();
   const [focus, setFocus] = useState<string | null>(null);
@@ -36,6 +38,7 @@ function DashboardContent() {
         {/* Hero Left Overlay */}
         <section id="now" className="relative w-full min-h-[40svh] md:h-[100svh] flex flex-col justify-center px-4 lg:px-12 pointer-events-none bg-[#f8f9fc] md:bg-transparent border-b border-[#e2e8f0] md:border-none">
           <LeftOverlay state={state} setFocus={setFocus} />
+          <EvidenceStrip state={state} />
         </section>
 
         {/* Other sections with solid backgrounds to scroll over the 3D scene */}

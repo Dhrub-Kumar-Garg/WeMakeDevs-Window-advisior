@@ -35,30 +35,43 @@ export default function Sky() {
   // Stars visibility at night based on AQI
   const starOpacity = isNight ? Math.max(0, 1 - (outdoorAQI / 100)) : 0;
 
+  const skyMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        colorBottom: { value: new THREE.Color(isNight ? '#050a1f' : isTwilight ? '#ffb055' : '#b4d5ff') },
+        colorTop: { value: new THREE.Color(isNight ? '#020410' : isTwilight ? '#552255' : '#4a90e2') }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 colorBottom;
+        uniform vec3 colorTop;
+        varying vec2 vUv;
+        void main() {
+          gl_FragColor = vec4(mix(colorBottom, colorTop, vUv.y), 1.0);
+        }
+      `,
+      toneMapped: false,
+      depthWrite: false
+    });
+  }, [isNight, isTwilight]);
+
   return (
     <group>
-      {/* Dynamic Sky */}
-      {!isNight && (
-        <DreiSky 
-          sunPosition={sunPosition} 
-          turbidity={turbidity} 
-          rayleigh={1.5} 
-          mieCoefficient={0.005} 
-          mieDirectionalG={0.7} 
-        />
-      )}
-
-      {/* Night Sky */}
-      {isNight && (
-        <mesh scale={100}>
-          <sphereGeometry />
-          <meshBasicMaterial color="#050a1f" side={THREE.BackSide} />
-        </mesh>
-      )}
+      {/* Emissive Sky Plane */}
+      <mesh position={[0, 10, -40]}>
+        <planeGeometry args={[120, 120]} />
+        <primitive object={skyMaterial} attach="material" />
+      </mesh>
 
       {/* Stars */}
       {starOpacity > 0 && (
-        <Stars radius={50} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+        <Stars radius={38} depth={10} count={2000} factor={4} saturation={0} fade speed={1} />
       )}
 
       {/* City lights (emissive points) */}
@@ -74,43 +87,17 @@ export default function Sky() {
         </points>
       )}
 
-      {/* Lighting */}
-      <ambientLight intensity={isNight ? 0.05 : 0.2} />
-      {!isNight && (
-        <directionalLight 
-          position={sunPosition} 
-          intensity={sunIntensity} 
-          color={sunColor} 
-          castShadow 
-          shadow-bias={-0.0001}
-        />
-      )}
-      
-      {/* Interior Lamp at night */}
-      {isNight && (
-        <pointLight position={[0, 2.5, 2]} intensity={0.5} color="#ffeebb" castShadow />
-      )}
+      {/* Lighting has been moved to Lighting.tsx for stable exposure */}
 
       {/* Distant Skyline */}
       <group position={[0, -1, -30]}>
         {Array.from({ length: 20 }).map((_, i) => (
           <mesh key={i} position={[(i - 10) * 4 + (Math.random() - 0.5) * 2, Math.random() * 2, (Math.random() - 0.5) * 5]}>
             <boxGeometry args={[2 + Math.random() * 2, 4 + Math.random() * 4, 2]} />
-            <meshBasicMaterial color={isNight ? "#02040a" : "#4a5568"} fog={true} />
+            <meshBasicMaterial color={isNight ? "#02040a" : "#4a5568"} fog={true} toneMapped={false} />
           </mesh>
         ))}
       </group>
-
-      {/* Fog for depth */}
-      <fog attach="fog" args={[isNight ? '#050a1f' : '#cbd5e1', 20, 60]} />
-      
-      {/* Light shafts (Gradient Cone) */}
-      {!isNight && sunPosition.z < 0 && (
-        <mesh position={[0, 1.65, 0]} rotation={[phi, theta, 0]}>
-          <cylinderGeometry args={[0.6, 2, 6, 32, 1, true]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.015 * Math.max(0, altitude)} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
-        </mesh>
-      )}
     </group>
   );
 }

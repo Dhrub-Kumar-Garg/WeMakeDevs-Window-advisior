@@ -30,19 +30,25 @@ export default function Room() {
       {/* Window Wall (Back) */}
       <mesh position={[0, 0, -0.2]} castShadow receiveShadow>
         <extrudeGeometry args={[windowWallShape, extrudeSettings]} />
-        <meshStandardMaterial color="#F4F3EE" roughness={0.9} />
+        <meshStandardMaterial color="#BFB6A8" roughness={0.9} />
       </mesh>
 
       {/* Right Wall */}
       <mesh position={[2.6, 1.5, 1.9]} castShadow receiveShadow>
         <boxGeometry args={[0.2, 3, 4]} />
-        <meshStandardMaterial color="#F4F3EE" roughness={0.9} />
+        <meshStandardMaterial color="#D9D2C7" roughness={0.9} />
+      </mesh>
+
+      {/* Left Wall */}
+      <mesh position={[-2.6, 1.5, 1.9]} castShadow receiveShadow>
+        <boxGeometry args={[0.2, 3, 4]} />
+        <meshStandardMaterial color="#BFB6A8" roughness={0.9} />
       </mesh>
 
       {/* Floor */}
       <mesh position={[0, -0.05, 1.9]} receiveShadow>
         <boxGeometry args={[5.4, 0.1, 4.2]} />
-        <meshStandardMaterial color="#A9907E" roughness={0.6} />
+        <meshStandardMaterial color="#8C735C" roughness={0.6} />
       </mesh>
 
       {/* Skirting Board Back */}
