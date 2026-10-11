@@ -67,9 +67,7 @@ export default function Sky() {
           <bufferGeometry>
             <bufferAttribute 
               attach="attributes-position" 
-              count={100} 
-              array={new Float32Array(300).map(() => (Math.random() - 0.5) * 100)} 
-              itemSize={3} 
+              args={[new Float32Array(300).map(() => (Math.random() - 0.5) * 100), 3]} 
             />
           </bufferGeometry>
           <pointsMaterial color="#ffaa55" size={0.5} sizeAttenuation={true} transparent opacity={0.6} />
@@ -109,8 +107,8 @@ export default function Sky() {
       {/* Light shafts (Gradient Cone) */}
       {!isNight && sunPosition.z < 0 && (
         <mesh position={[0, 1.65, 0]} rotation={[phi, theta, 0]}>
-          <cylinderGeometry args={[1.5, 3, 10, 32, 1, true]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.05 * Math.max(0, altitude)} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+          <cylinderGeometry args={[0.6, 2, 6, 32, 1, true]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.015 * Math.max(0, altitude)} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
         </mesh>
       )}
     </group>

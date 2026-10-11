@@ -85,9 +85,9 @@ export default function Dust() {
   return (
     <points>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-aOffset" count={count} array={offsets} itemSize={1} />
-        <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-aOffset" args={[offsets, 1]} />
+        <bufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
       </bufferGeometry>
       <shaderMaterial 
         ref={materialRef}

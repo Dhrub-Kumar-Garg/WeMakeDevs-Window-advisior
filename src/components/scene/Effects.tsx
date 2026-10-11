@@ -3,7 +3,7 @@ import { ToneMappingMode } from 'postprocessing';
 
 export default function Effects() {
   return (
-    <EffectComposer disableNormalPass>
+    <EffectComposer>
       <N8AO aoRadius={0.5} intensity={1} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <Vignette eskil={false} offset={0.1} darkness={0.5} />

@@ -12,6 +12,7 @@ import { useSceneInputs } from './useSceneInputs';
 import WindowAssembly from './WindowAssembly';
 import Sky from './Sky';
 import Dust from './Dust';
+import WallDisplay from './WallDisplay';
 
 export default function SceneRoot() {
   const { reducedMotion, co2Ratio } = useSceneInputs();
@@ -40,6 +41,7 @@ export default function SceneRoot() {
         <Sky />
         <Room />
         <WindowAssembly />
+        <WallDisplay />
         <Lighting />
         <Dust />
         <Effects />
