@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEnvironmentStore } from '@/store/useEnvironmentStore';
-import type { Verdict } from '@/lib/decision';
+import { computeVerdict, type Verdict } from '@/lib/decision';
 import type { CO2DataPoint, HourlyForecast, EventEntry, ModelParams, WindowState } from '@/lib/types';
 import { fetchLatestReading, fetchOutdoorForecast, type SourceStatus } from '@/lib/dataSource';
 import { findBestVentilationWindow, updateCO2, computeRecommendation } from '@/lib/co2Model';
@@ -23,6 +23,17 @@ export interface AdvisorState {
   events: EventEntry[];
   isDemo: boolean;
   timeCompression: number;
+  timeScale: number;
+  tempC?: number;
+  humidity?: number;
+  mq135Mv?: number;
+  mq135Idx?: number;
+  distanceCm?: number;
+  people: number;
+  volumeM3: number;
+  led?: string | number;
+  deviceId?: string;
+  pirPresence: boolean;
   setOccupants: (n: number) => void;
   setWindowState: (state: WindowState) => void;
   setSashAngle: (angle: number) => void;
@@ -57,6 +68,13 @@ export function useAdvisorState(): AdvisorState {
     }
   }
 
+  const currentVerdict = computeVerdict(
+    store.sensorData.co2Estimated,
+    store.sensorData.outdoorAQI,
+    store.modelParams.co2Threshold,
+    store.modelParams.aqiThreshold
+  );
+
   let predictedVerdict: Verdict | undefined;
   let predictedCO2: number | undefined;
 
@@ -72,9 +90,9 @@ export function useAdvisorState(): AdvisorState {
       predictedCO2 = Math.round(updateCO2(store.sensorData.co2Estimated, activeOccupants, store.modelParams.roomVolume, ACH, dt));
       
       const targetForecast = store.hourlyForecast.find(f => f.hour === store.scrubHour) || store.hourlyForecast[0];
-      predictedVerdict = computeRecommendation(predictedCO2, targetForecast.aqi, store.modelParams, false) as Verdict;
+      predictedVerdict = computeVerdict(predictedCO2, targetForecast.aqi, store.modelParams.co2Threshold, store.modelParams.aqiThreshold);
     } else {
-      predictedVerdict = store.recommendation as Verdict;
+      predictedVerdict = currentVerdict;
       predictedCO2 = store.sensorData.co2Estimated;
     }
   }
@@ -142,7 +160,7 @@ export function useAdvisorState(): AdvisorState {
     occupants: store.modelParams.occupants,
     windowState: store.windowState,
     ach,
-    verdict: store.recommendation as Verdict, // Maps Recommendation to Verdict
+    verdict: currentVerdict,
     modelParams: store.modelParams,
     waitUntil,
     sourceStatus: systemStatus.status,
@@ -152,6 +170,17 @@ export function useAdvisorState(): AdvisorState {
     events: store.events,
     isDemo,
     timeCompression: isDemo ? 60 : 1,
+    timeScale: store.sensorData.timeScale ?? (isDemo ? 60 : 1),
+    tempC: store.sensorData.tempC,
+    humidity: store.sensorData.humidity,
+    mq135Mv: store.sensorData.mq135Mv,
+    mq135Idx: store.sensorData.mq135Idx,
+    distanceCm: store.sensorData.distanceCm,
+    people: store.sensorData.people,
+    volumeM3: store.sensorData.volumeM3,
+    led: store.sensorData.led,
+    deviceId: store.sensorData.deviceId,
+    pirPresence: store.sensorData.pirPresence,
     setOccupants: store.setOccupants,
     setWindowState: store.setWindowState,
     setSashAngle: store.setSashAngle,

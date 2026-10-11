@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import type { EnvironmentState, Recommendation, WindowState, SensorData, ModelParams, CO2DataPoint, HourlyForecast, EventEntry } from '@/lib/types';
 import { computeRecommendation, computeConfidence, predictCO2Trajectory, updateCO2 } from '@/lib/co2Model';
+import { computeVerdict } from '@/lib/decision';
 import { INITIAL_SENSOR_DATA, DEFAULT_MODEL_PARAMS, generateHistoricalCO2, generateHourlyForecast, DEMO_EVENTS } from '@/lib/mockData';
 import type { LatestReading } from '@/lib/dataSource';
 
@@ -274,35 +275,80 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
 
     applyLatestReading: (reading: LatestReading) => {
       const state = get();
-      const occ = reading.pirPresence ? state.modelParams.occupants : 0;
-      
-      const newSensor: SensorData = {
-        ...state.sensorData,
-        timestamp: reading.timestamp,
-        windowOpen: reading.windowOpen,
-        pirPresence: reading.pirPresence,
-        temperature: reading.temperature,
-        mq135Raw: reading.mq135Raw,
+
+      // UI and device agree on model parameters
+      const newParams: ModelParams = {
+        ...state.modelParams,
+        roomVolume: reading.volumeM3 ?? state.modelParams.roomVolume,
+        occupants: reading.people ?? state.modelParams.occupants,
+        achClosed: !reading.windowOpen ? (reading.ach ?? state.modelParams.achClosed) : state.modelParams.achClosed,
+        achOpen: reading.windowOpen ? (reading.ach ?? state.modelParams.achOpen) : state.modelParams.achOpen,
       };
 
-      const newWindowState = reading.windowOpen ? 'open' : 'closed';
+      const readingTsMs = reading.ts > 1e11 ? reading.ts : reading.ts * 1000;
+      const pirActive = Boolean(reading.pir);
+      const co2Val = Math.round(reading.co2Est);
+      const outdoorAQIVal = Math.round(reading.aqiOut ?? state.sensorData.outdoorAQI);
+
+      const newSensor: SensorData = {
+        ...state.sensorData,
+        timestamp: readingTsMs,
+        co2Estimated: co2Val,
+        co2Min: co2Val - 120,
+        co2Max: co2Val + 120,
+        tempC: reading.tempC,
+        temperature: reading.tempC ?? state.sensorData.temperature,
+        humidity: reading.humidity,
+        pirPresence: pirActive,
+        windowOpen: reading.windowOpen,
+        mq135Mv: reading.mq135Mv,
+        mq135Idx: reading.mq135Idx,
+        mq135Raw: reading.mq135Idx ?? Math.round(reading.mq135Mv / 10),
+        distanceCm: reading.distanceCm,
+        people: reading.people,
+        volumeM3: reading.volumeM3,
+        ach: reading.ach,
+        outdoorAQI: outdoorAQIVal,
+        aqiSrc: reading.aqiSrc ?? state.sensorData.aqiSrc,
+        led: reading.led,
+        timeScale: reading.timeScale ?? 1,
+        deviceId: reading.deviceId,
+      };
+
+      const newWindowState: WindowState = reading.windowOpen ? 'open' : 'closed';
       
-      const newRec = computeRecommendation(
-        state.sensorData.co2Estimated,
-        state.sensorData.outdoorAQI,
-        { ...state.modelParams, occupants: occ },
-        reading.windowOpen
+      // Compute verdict in the frontend (computeVerdict) from co2Est and outdoor AQI
+      const newVerdict = computeVerdict(
+        co2Val,
+        outdoorAQIVal,
+        newParams.co2Threshold,
+        newParams.aqiThreshold
       );
 
-      const newEnvState = deriveEnvState(state.sensorData.co2Estimated, reading.windowOpen, reading.pirPresence, newRec);
+      const newEnvState = deriveEnvState(co2Val, reading.windowOpen, pirActive, newVerdict as Recommendation);
+
+      // Seed history / projections from co2Est
+      const newHistory = [...state.historicalCO2];
+      const now = new Date(readingTsMs);
+      const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      newHistory.push({
+        time: timeLabel,
+        estimated: co2Val,
+        min: co2Val - 120,
+        max: co2Val + 120,
+        mq135: reading.mq135Idx ?? Math.round(reading.mq135Mv / 10),
+      });
+      if (newHistory.length > 30) newHistory.shift();
 
       set({
         sensorData: newSensor,
+        modelParams: newParams,
         windowState: newWindowState,
         sashAngle: reading.windowOpen ? 60 : 0,
-        recommendation: newRec,
+        recommendation: newVerdict as Recommendation,
         envState: newEnvState,
-        lastUpdated: reading.timestamp,
+        lastUpdated: readingTsMs,
+        historicalCO2: newHistory,
       });
     },
 
@@ -341,16 +387,21 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => {
       );
       const newCO2Rounded = Math.round(newCO2);
 
+      const mqIdx = Math.round(30 + (newCO2Rounded - 420) / 900 * 65);
+      const mqMv = Math.round(150 + (newCO2Rounded - 420) / 900 * 500);
+
       const newSensor: SensorData = {
         ...state.sensorData,
         timestamp: Date.now(),
         co2Estimated: newCO2Rounded,
         co2Min: newCO2Rounded - 120,
         co2Max: newCO2Rounded + 120,
-        mq135Raw: Math.round(30 + (newCO2Rounded - 420) / 900 * 65),
+        mq135Raw: mqIdx,
+        mq135Idx: mqIdx,
+        mq135Mv: mqMv,
       };
 
-      const newRec = computeRecommendation(newCO2Rounded, state.sensorData.outdoorAQI, state.modelParams, state.windowState !== 'closed');
+      const newRec = computeVerdict(newCO2Rounded, state.sensorData.outdoorAQI, state.modelParams.co2Threshold, state.modelParams.aqiThreshold) as Recommendation;
       const newConf = computeConfidence(newCO2Rounded, state.sensorData.outdoorAQI, state.modelParams, 'manual');
       const newEnvState = deriveEnvState(newCO2Rounded, state.windowState !== 'closed', state.sensorData.pirPresence, newRec);
 

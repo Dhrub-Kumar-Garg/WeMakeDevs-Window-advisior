@@ -13,15 +13,16 @@ export default function PlumbingLine() {
   }, []);
 
   const hardware = [
-    { name: "ESP32", role: "Main microcontroller handling sensors and network.", status: "PLANNED" },
-    { name: "LM35 (Temperature)", role: "Reads indoor temperature.", status: "PLANNED" },
-    { name: "PIR (Occupancy)", role: "Detects human presence to scale CO2 assumption.", status: "PLANNED" },
-    { name: "MQ135 (VOC/Gas)", role: "Provides relative trend of indoor air quality.", status: "PLANNED" },
-    { name: "Push Button", role: "Physical toggle for window state.", status: "PLANNED" },
-    { name: "LEDs", role: "Physical state indicators.", status: "PLANNED" },
-    { name: "Cloud API / Backend", role: "Serves the latest sensor readings to the frontend.", status: "PLANNED" },
-    { name: "Open-Meteo API", role: "Provides hourly AQI, PM2.5, and wind speed forecasts.", status: "LIVE" },
-    { name: "Next.js Frontend", role: "Runs the mass-balance simulation and renders the UI.", status: "LIVE" }
+    { name: "ESP32", role: "Main microcontroller handling sensors and WiFi/MQTT telemetry.", status: "LIVE" },
+    { name: "DHT11", role: "Measures indoor temperature (about ±2 °C) and humidity (±5%).", status: "LIVE" },
+    { name: "MQ135 (via voltage divider)", role: "Analog VOC/gas reading for relative trend (not ppm).", status: "LIVE" },
+    { name: "PIR HC-SR501", role: "Detects human presence (assumed occupants, never headcount).", status: "LIVE" },
+    { name: "HC-SR04 ultrasonic", role: "Measures distance (HC-SR04).", status: "LIVE" },
+    { name: "Push Button", role: "Physical toggle for window state.", status: "LIVE" },
+    { name: "LEDs", role: "Physical state indicators (Green, Amber, Red).", status: "LIVE" },
+    { name: "AWS IoT Core / Cloud API", role: "Ingests sensor payload and serves latest readings.", status: "LIVE" },
+    { name: "Open-Meteo API", role: "Provides hourly outdoor AQI, PM2.5, and wind speed forecasts.", status: "LIVE" },
+    { name: "Next.js Frontend", role: "Runs physics mass-balance model and renders real-time advice.", status: "LIVE" }
   ];
 
   return (

@@ -61,10 +61,22 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
               ppm est. CO₂
             </span>
           </div>
-          <div suppressHydrationWarning className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5 flex items-center gap-1.5">
+          <div suppressHydrationWarning className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span>limit {targetCO2}</span>
             <span>•</span>
-            <span>{state.systemStatus.status} ({state.systemStatus.ageText})</span>
+            <span>PIR: {state.pirPresence ? 'presence' : 'idle'} (assumed occupants {state.people})</span>
+            {state.tempC !== undefined && (
+              <>
+                <span>•</span>
+                <span>{state.tempC.toFixed(1)}°C{state.humidity !== undefined ? `, ${state.humidity.toFixed(0)}%` : ''} measured (DHT11)</span>
+              </>
+            )}
+            {state.distanceCm !== undefined && (
+              <>
+                <span>•</span>
+                <span>distance (HC-SR04): {state.distanceCm.toFixed(1)} cm</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -84,8 +96,14 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
               modelled, Open-Meteo
             </span>
           </div>
-          <div className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5">
-            limit {modelParams.aqiThreshold}
+          <div className="text-[12px] md:text-[11px] font-mono text-[#111111]/60 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>limit {modelParams.aqiThreshold}</span>
+            {state.mq135Idx !== undefined && (
+              <>
+                <span>•</span>
+                <span>MQ135 relative trend, not ppm: idx {state.mq135Idx}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

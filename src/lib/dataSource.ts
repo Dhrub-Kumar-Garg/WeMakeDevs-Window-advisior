@@ -2,11 +2,23 @@ import { SensorData, HourlyForecast, ModelParams } from './types';
 import { aqiToVentilationQuality, co2ReductionEstimate } from './co2Model';
 
 export interface LatestReading {
-  timestamp: number;
+  deviceId: string;
+  ts: number; // epoch seconds
+  tempC?: number;
+  humidity?: number;
+  pir: boolean | number; // presence
   windowOpen: boolean;
-  pirPresence: boolean;
-  temperature: number;
-  mq135Raw: number;
+  mq135Mv: number; // raw mV, never ppm
+  mq135Idx?: number; // relative trend
+  co2Est: number; // ESTIMATE
+  people: number; // ASSUMED occupants
+  ach: number; // ASSUMED
+  volumeM3: number;
+  aqiOut: number;
+  aqiSrc: string;
+  led: string | number; // drives the three LED dots in top rail
+  timeScale: number;
+  distanceCm?: number; // (HC-SR04, cm)
 }
 
 export type SourceStatus = 'LIVE' | 'STALE' | 'DEMO';
@@ -19,11 +31,23 @@ export async function fetchLatestReading(): Promise<LatestReading | null> {
     if (!res.ok) return null;
     const data = await res.json();
     return {
-      timestamp: data.timestamp || Date.now(),
+      deviceId: String(data.deviceId || 'esp32-advisor'),
+      ts: Number(data.ts ?? (data.timestamp ? Math.floor(data.timestamp / 1000) : Math.floor(Date.now() / 1000))),
+      tempC: data.tempC !== undefined ? Number(data.tempC) : (data.temperature !== undefined ? Number(data.temperature) : undefined),
+      humidity: data.humidity !== undefined ? Number(data.humidity) : undefined,
+      pir: Boolean(data.pir ?? data.pirPresence),
       windowOpen: Boolean(data.windowOpen),
-      pirPresence: Boolean(data.pirPresence),
-      temperature: Number(data.temperature),
-      mq135Raw: Number(data.mq135Raw),
+      mq135Mv: Number(data.mq135Mv ?? data.mq135Raw ?? 0),
+      mq135Idx: data.mq135Idx !== undefined ? Number(data.mq135Idx) : (data.mq135Raw !== undefined ? Number(data.mq135Raw) : undefined),
+      co2Est: Number(data.co2Est ?? data.co2Estimated ?? 420),
+      people: Number(data.people ?? data.occupants ?? 1),
+      ach: Number(data.ach ?? (data.windowOpen ? 4.0 : 0.4)),
+      volumeM3: Number(data.volumeM3 ?? data.roomVolume ?? 36),
+      aqiOut: Number(data.aqiOut ?? data.outdoorAQI ?? 50),
+      aqiSrc: String(data.aqiSrc ?? 'Open-Meteo'),
+      led: data.led ?? (data.windowOpen ? 'GREEN' : 'AMBER'),
+      timeScale: Number(data.timeScale ?? 1),
+      distanceCm: data.distanceCm !== undefined ? Number(data.distanceCm) : undefined,
     };
   } catch (err) {
     console.error('Failed to fetch latest reading:', err);

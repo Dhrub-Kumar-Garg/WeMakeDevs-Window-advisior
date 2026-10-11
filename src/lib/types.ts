@@ -20,16 +20,28 @@ export type AQILevel = 'Good' | 'Moderate' | 'Unhealthy for Sensitive' | 'Unheal
 
 export interface SensorData {
   timestamp: number;        // Unix ms
-  co2Estimated: number;     // ppm (model-based)
+  co2Estimated: number;     // ppm (model-based, est.)
   co2Min: number;           // ppm low bound
   co2Max: number;           // ppm high bound
-  mq135Raw: number;         // raw relative value (0-100)
-  temperature: number;      // °C from LM35
-  pirPresence: boolean;     // PIR state
-  windowOpen: boolean;      // from push button
+  mq135Raw: number;         // relative trend (0-100)
+  mq135Mv: number;          // raw mV (never ppm)
+  mq135Idx?: number;        // relative trend index
+  tempC?: number;           // measured (DHT11) °C
+  humidity?: number;        // measured (DHT11) %
+  temperature: number;      // fallback for temp display
+  pirPresence: boolean;     // PIR presence state
+  windowOpen: boolean;      // window state
   outdoorAQI: number;       // 0-500
   outdoorPM25: number;      // μg/m³
   outdoorTemp: number;      // °C
+  distanceCm?: number;      // distance (HC-SR04) cm
+  people: number;           // assumed occupants
+  volumeM3: number;         // room volume m³
+  ach: number;              // assumed ACH
+  aqiSrc?: string;          // AQI source
+  led?: string | number;    // LED indicator for top rail
+  timeScale: number;        // time scale multiplier (1 = realtime)
+  deviceId?: string;
 }
 
 export interface ModelParams {

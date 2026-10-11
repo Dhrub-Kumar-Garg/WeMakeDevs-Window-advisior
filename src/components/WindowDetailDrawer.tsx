@@ -64,39 +64,77 @@ export default function WindowDetailDrawer({ state }: { state: AdvisorState }) {
 
           <div className="flex flex-col gap-4">
             <h3 className="label-technical">Telemetry</h3>
-            <div className="border border-subtle p-4 flex flex-col gap-3 font-mono text-[11px]">
+            <div className="border border-subtle p-4 flex flex-col gap-2.5 font-mono text-[11px]">
               <div className="flex justify-between items-center">
                 <span className="text-secondary">Connection</span>
                 {esp32Connected ? (
-                  <span className="text-status-safe">Online</span>
+                  <span className="text-status-safe">Online ({sensorData.deviceId || 'esp32'})</span>
                 ) : (
                   <span className="text-status-danger">Offline</span>
                 )}
               </div>
               <div className="h-px bg-subtle" />
               <div className="flex justify-between items-center">
-                <span className="text-secondary">State</span>
-                <span className="text-primary">{isOpen ? 'HIGH (1)' : 'LOW (0)'}</span>
+                <span className="text-secondary">Window State</span>
+                <span className="text-primary">{isOpen ? 'OPEN (HIGH)' : 'CLOSED (LOW)'}</span>
               </div>
               <div className="h-px bg-subtle" />
               <div className="flex justify-between items-center">
                 <span className="text-secondary">PIR</span>
-                <span className="text-primary">{sensorData.pirPresence ? 'HIGH' : 'LOW'}</span>
+                <span className="text-primary">{sensorData.pirPresence ? 'presence' : 'idle'} (assumed occupants {sensorData.people ?? 1})</span>
               </div>
+              <div className="h-px bg-subtle" />
+              <div className="flex justify-between items-center">
+                <span className="text-secondary">measured (DHT11)</span>
+                <span className="text-primary">
+                  {sensorData.tempC !== undefined ? `${sensorData.tempC.toFixed(1)}°C` : `${sensorData.temperature.toFixed(1)}°C`}
+                  {sensorData.humidity !== undefined ? ` • ${sensorData.humidity.toFixed(0)}%` : ''}
+                </span>
+              </div>
+              <div className="h-px bg-subtle" />
+              <div className="flex justify-between items-center">
+                <span className="text-secondary">MQ135 (relative trend, not ppm)</span>
+                <span className="text-primary">{sensorData.mq135Idx ?? sensorData.mq135Raw} ({sensorData.mq135Mv} mV raw)</span>
+              </div>
+              {sensorData.distanceCm !== undefined && (
+                <>
+                  <div className="h-px bg-subtle" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-secondary">distance (HC-SR04)</span>
+                    <span className="text-primary">{sensorData.distanceCm.toFixed(1)} cm</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
           <div className="flex flex-col gap-4 mt-auto">
             <h3 className="label-technical">MQTT Stream</h3>
-            <div className="bg-[#1C1C1C] rounded-sm p-4 font-mono text-[10px] text-muted h-32 overflow-y-auto shadow-inner">
+            <div className="bg-[#1C1C1C] rounded-sm p-4 font-mono text-[10px] text-muted h-44 overflow-y-auto shadow-inner">
               <div className="mb-2 text-[#666666]">&gt; Connecting to AWS IoT Core...</div>
               <div className="mb-2 text-[#666666]">&gt; Subscribed to esp32/sensors</div>
-              <div className="mb-2 text-[#EAEAEA]">&gt; Payload received:</div>
-              <div className="text-[#A5A5A5]">{`{`}</div>
-              <div className="pl-4 text-[#A5A5A5]">{`"window": ${isOpen ? '1' : '0'},`}</div>
-              <div className="pl-4 text-[#A5A5A5]">{`"pir": ${sensorData.pirPresence ? '1' : '0'},`}</div>
-              <div className="pl-4 text-[#A5A5A5]">{`"temp": ${sensorData.temperature.toFixed(1)}`}</div>
-              <div className="text-[#A5A5A5]">{`}`}</div>
+              <div className="mb-2 text-[#EAEAEA]">&gt; Device Payload:</div>
+              <pre className="text-[#A5A5A5] leading-relaxed whitespace-pre-wrap font-mono text-[9.5px]">
+{JSON.stringify({
+  deviceId: sensorData.deviceId || 'esp32-advisor',
+  ts: Math.floor(sensorData.timestamp / 1000),
+  tempC: sensorData.tempC ?? sensorData.temperature,
+  humidity: sensorData.humidity ?? 52,
+  pir: sensorData.pirPresence ? 1 : 0,
+  windowOpen: isOpen,
+  mq135Mv: sensorData.mq135Mv,
+  mq135Idx: sensorData.mq135Idx ?? sensorData.mq135Raw,
+  co2Est: sensorData.co2Estimated,
+  people: sensorData.people ?? 1,
+  ach: sensorData.ach ?? (isOpen ? 4.0 : 0.4),
+  volumeM3: sensorData.volumeM3 ?? 36,
+  aqiOut: sensorData.outdoorAQI,
+  aqiSrc: sensorData.aqiSrc ?? 'Open-Meteo',
+  led: sensorData.led ?? (isOpen ? 'GREEN' : 'AMBER'),
+  timeScale: sensorData.timeScale ?? 1,
+  ...(sensorData.distanceCm !== undefined ? { distanceCm: sensorData.distanceCm } : {})
+}, null, 2)}
+              </pre>
             </div>
           </div>
 
