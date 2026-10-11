@@ -73,7 +73,7 @@ export default function BottomScrubStrip({ state }: { state: AdvisorState }) {
   const activeIndex = state.scrubHour !== null ? forecast.findIndex(f => f.hour === state.scrubHour) : -1;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col justify-end pointer-events-auto">
+    <div className="relative w-full z-50 flex flex-col justify-end pointer-events-auto shrink-0">
       <div className="px-3 pb-1 pt-1 bg-[rgba(244,240,234,0.92)] text-[9px] sm:text-[11px] font-mono text-[#111111] flex items-center justify-between gap-1.5 border-t border-[#111111]/15 overflow-x-auto whitespace-nowrap">
         <span className="font-semibold tracking-wide text-[9px] sm:text-[11px]">DRAG TO PREDICT</span>
         <div className="flex items-center gap-2 sm:gap-3 text-[8.5px] sm:text-[10px]">

@@ -51,12 +51,12 @@ export default function ForecastSkyline({ state }: { state: AdvisorState }) {
   const nowX = getX(nowIndex);
 
   return (
-    <section className="w-full border-b border-[#e2e8f0] p-6 lg:p-12 flex flex-col items-center">
+    <section className="w-full bg-[#f4f0ea] border-b border-[#111111]/15 p-6 lg:p-12 flex flex-col items-center text-[#2c2825]">
       <div className="w-full max-w-7xl">
-        <h2 className="font-serif italic text-3xl md:text-4xl text-[#111111] mb-2">Outdoor Forecast</h2>
+        <h2 className="font-serif italic text-3xl md:text-4xl text-[#2c2825] mb-2">Outdoor Forecast</h2>
         <div className="flex flex-col md:flex-row justify-between md:items-end mb-12 gap-4">
-          <p className="font-mono text-xs uppercase tracking-widest text-[#666666]">24h AQI Skyline</p>
-          <p className="font-mono text-[10px] text-[#666666]">
+          <p className="font-mono text-xs uppercase tracking-widest text-[#8c8273]">24h AQI Skyline</p>
+          <p className="font-mono text-[10px] text-[#8c8273]">
             Suitable clearing: AQI &lt; {state.modelParams.aqiThreshold} (Source: Open-Meteo)
           </p>
         </div>

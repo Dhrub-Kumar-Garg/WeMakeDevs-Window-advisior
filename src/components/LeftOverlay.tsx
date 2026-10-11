@@ -173,17 +173,17 @@ function WhatIfControl({ state, textColor }: { state: AdvisorState; textColor: s
   }
 
   return (
-    <div className="mt-4 lg:mt-6 font-mono text-xs">
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="text-[11px] uppercase tracking-wider opacity-75 font-semibold mr-1" style={{ color: textColor }}>
-          WHAT IF I...
-        </span>
+    <div className="mt-3 lg:mt-6 font-mono text-xs">
+      <div className="text-[10px] md:text-[11px] uppercase tracking-wider opacity-75 font-semibold mb-1.5" style={{ color: textColor }}>
+        WHAT IF I...
+      </div>
 
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => state.setPreviewOpen(false)}
           aria-pressed={isClosedActive}
-          className={`min-h-[44px] px-3.5 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
+          className={`min-h-[44px] px-3 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
             isClosedActive
               ? 'font-bold border-b-2 border-b-[#111111] bg-black/5'
               : 'opacity-80'
@@ -197,7 +197,7 @@ function WhatIfControl({ state, textColor }: { state: AdvisorState; textColor: s
           type="button"
           onClick={() => state.setPreviewOpen(true)}
           aria-pressed={isOpenActive}
-          className={`min-h-[44px] px-3.5 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
+          className={`min-h-[44px] px-3 py-1 text-xs uppercase tracking-wider border border-[#111111]/25 hover:border-[#111111]/70 transition-colors focus-visible:outline-2 focus-visible:outline-black relative ${
             isOpenActive
               ? 'font-bold border-b-2 border-b-[#111111] bg-black/5'
               : 'opacity-80'
@@ -258,7 +258,6 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
   const isNight = isMounted ? (altitude < -0.05) : false;
 
   const textColor = (isNight && !isMobile) ? '#f8fafc' : '#111111';
-  const scrimFade = (isNight && !isMobile) ? 'rgba(0,0,0,0.6)' : (isMobile ? 'transparent' : 'rgba(255,255,255,0.7)');
 
   const activeVerdict = state.scrubHour !== null && state.predictedVerdict ? state.predictedVerdict : state.verdict;
   const accentColor = activeVerdict === 'WAIT' ? '#eab308' : 
@@ -270,11 +269,9 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
     : 'Should I open the window?';
 
   return (
-    <div className={`relative w-full ${isMobile ? 'max-w-full pt-6 pb-6' : 'max-w-[46vw] h-full'} flex flex-col justify-center pointer-events-auto`}>
-      {/* Scrim removed to prevent washing out the 3D scene */}
-      
-      <div className="pl-8 lg:pl-16">
-        <h2 className="font-serif italic text-xl lg:text-3xl mb-2 lg:mb-4" style={{ color: textColor }}>
+    <div className={`relative w-full ${isMobile ? 'max-w-full pt-1' : 'max-w-[46vw] h-full'} flex flex-col justify-start md:justify-center pointer-events-auto`}>
+      <div className="pl-4 sm:pl-8 lg:pl-16">
+        <h2 className="font-serif italic text-xl lg:text-3xl mb-1 lg:mb-4" style={{ color: textColor }}>
           {headingText}
         </h2>
 
@@ -285,7 +282,7 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
           textColor={textColor}
         />
 
-        <div className="mt-4 lg:mt-8 font-serif italic text-xl md:text-3xl leading-tight max-w-xl" style={{ color: textColor }}>
+        <div className="mt-3 lg:mt-8 font-serif italic text-lg md:text-3xl leading-tight max-w-xl" style={{ color: textColor }}>
           {state.scrubHour !== null ? (
             <>Projected CO₂ {state.predictedCO2} ppm; assumes current occupancy, window closed.</>
           ) : (
@@ -296,7 +293,7 @@ export default function LeftOverlay({ state, setFocus }: { state: AdvisorState, 
         {/* What if I... control */}
         <WhatIfControl state={state} textColor={textColor} />
 
-        <p suppressHydrationWarning className="mt-6 lg:mt-12 font-mono text-[10px] lg:text-xs opacity-60" style={{ color: textColor }}>
+        <p suppressHydrationWarning className="mt-3 lg:mt-10 font-mono text-[9.5px] lg:text-xs opacity-60" style={{ color: textColor }}>
           Estimates only: CO₂ is modelled, forecast is modelled. • {state.systemStatus.status} (last reading {state.systemStatus.ageText})
         </p>
       </div>

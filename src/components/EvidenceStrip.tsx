@@ -43,11 +43,11 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
   return (
     <div 
       id="evidence-strip"
-      className="w-full border-t border-[#111111]/15 flex flex-col md:flex-row pointer-events-auto text-[#111111] md:fixed md:bottom-[66px] md:left-0 md:right-0 md:z-40 mb-14 md:mb-0"
-      style={{ backgroundColor: 'rgba(244,240,234,0.85)' }}
+      className="w-full border-t border-[#111111]/15 flex flex-col md:flex-row pointer-events-auto text-[#111111] shrink-0"
+      style={{ backgroundColor: 'rgba(244,240,234,0.92)' }}
     >
       {/* 1) INDOOR */}
-      <div className="flex-1 border-b md:border-b-0 md:border-r border-[#111111]/15 px-4 lg:px-6 py-2.5 flex items-center">
+      <div className="flex-1 border-b md:border-b-0 md:border-r border-[#111111]/15 px-4 lg:px-6 py-1.5 md:py-2.5 flex items-center">
         <div className="w-1.5 h-10 mr-3.5 shrink-0" style={{ backgroundColor: indoorAccent }} />
         <div className="min-w-0">
           <div className="text-sm font-mono uppercase tracking-wider text-[#111111]/70 mb-0.5">
@@ -70,7 +70,7 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
       </div>
       
       {/* 2) OUTDOOR */}
-      <div className="flex-1 border-b md:border-b-0 md:border-r border-[#111111]/15 px-4 lg:px-6 py-2.5 flex items-center">
+      <div className="flex-1 border-b md:border-b-0 md:border-r border-[#111111]/15 px-4 lg:px-6 py-1.5 md:py-2.5 flex items-center">
         <div className="w-1.5 h-10 mr-3.5 shrink-0" style={{ backgroundColor: outdoorAccent }} />
         <div className="min-w-0">
           <div className="text-sm font-mono uppercase tracking-wider text-[#111111]/70 mb-0.5">
@@ -91,7 +91,7 @@ export default function EvidenceStrip({ state }: { state: AdvisorState }) {
       </div>
 
       {/* 3) IF YOU OPEN NOW */}
-      <div className="flex-1 px-4 lg:px-6 py-2.5 flex items-center">
+      <div className="flex-1 px-4 lg:px-6 py-1.5 md:py-2.5 flex items-center">
         <div className="w-1.5 h-10 mr-3.5 shrink-0" style={{ backgroundColor: accentColor }} />
         <div className="min-w-0">
           <div className="text-sm font-mono uppercase tracking-wider text-[#111111]/70 mb-0.5">

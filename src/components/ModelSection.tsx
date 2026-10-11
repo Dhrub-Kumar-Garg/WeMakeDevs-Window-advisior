@@ -19,7 +19,7 @@ export default function ModelSection() {
   };
 
   return (
-    <div className="w-full bg-[#f4efe6] text-[#2c2825] border-t border-[#e6decb] p-6 lg:p-12 flex flex-col items-center">
+    <div className="w-full bg-[#f4f0ea] text-[#2c2825] border-t border-[#111111]/15 p-6 lg:p-12 flex flex-col items-center">
       <div className="w-full max-w-7xl">
         <h2 className="font-serif italic text-3xl md:text-4xl mb-2 text-[#2c2825]">Model Configuration</h2>
         <p className="font-mono text-xs uppercase tracking-widest text-[#8c8273] mb-8">Physics Assumptions & Live Controls</p>
